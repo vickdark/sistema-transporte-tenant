@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import UserAccessFields from '@/components/central/UserAccessFields.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import UserAccessFields from '@/components/UserAccessFields.vue';
 import { useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 
 export interface InitialUser {
     name: string;
-    email: string;
+    username: string;
+    email: string | null;
     invitation_pending: boolean;
     invited_at: string | null;
 }
@@ -22,7 +23,8 @@ const props = defineProps<{
 
 const form = useForm({
     name: props.user.name,
-    email: props.user.email,
+    username: props.user.username,
+    email: props.user.email ?? '',
     send_invitation: false,
     password: '',
     password_confirmation: '',
@@ -65,8 +67,13 @@ const save = () => {
                     <InputError :message="form.errors.name" />
                 </div>
                 <div class="grid gap-2">
+                    <Label for="initial_user_username">Usuario</Label>
+                    <Input id="initial_user_username" v-model="form.username" required autocapitalize="off" />
+                    <InputError :message="form.errors.username" />
+                </div>
+                <div class="grid gap-2">
                     <Label for="initial_user_email">Correo</Label>
-                    <Input id="initial_user_email" type="email" v-model="form.email" required />
+                    <Input id="initial_user_email" type="email" v-model="form.email" :required="form.send_invitation" />
                     <InputError :message="form.errors.email" />
                 </div>
             </div>

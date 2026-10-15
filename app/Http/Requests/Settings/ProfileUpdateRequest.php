@@ -18,8 +18,9 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            // El usuario lo asigna el administrador; el correo es opcional (sirve para recuperar la contraseña).
             'email' => [
-                'required',
+                'nullable',
                 'string',
                 'lowercase',
                 'email',

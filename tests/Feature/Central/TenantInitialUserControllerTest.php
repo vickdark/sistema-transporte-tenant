@@ -15,6 +15,7 @@ beforeEach(function () {
     $this->tenant->domains()->create(['domain' => 'kemuel']);
     $this->admin = $this->tenant->run(fn () => User::factory()->unverified()->create([
         'name' => 'Ana Gerente',
+        'username' => 'ana',
         'email' => 'ana@kemuel.test',
         'invited_at' => now(),
     ]));
@@ -28,6 +29,7 @@ function initialUserPayload(array $overrides = []): array
 {
     return [
         'name' => 'Ana Gerente',
+        'username' => 'ana',
         'email' => 'ana@kemuel.test',
         'send_invitation' => false,
         ...$overrides,

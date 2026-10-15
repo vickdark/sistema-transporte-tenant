@@ -4,6 +4,7 @@ namespace App\Http\Requests\Central;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Rules\Username;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -30,25 +31,30 @@ class UpdateTenantInitialUserRequest extends FormRequest
         $tenant = $this->route('tenant');
         $initialUser = $tenant->initialUser();
 
+        // Los usuarios viven en el schema de la empresa: la unicidad se revisa allí.
+        $uniqueInTenant = fn (string $column, string $message): Closure => function (string $attribute, mixed $value, Closure $fail) use ($tenant, $initialUser, $column, $message): void {
+            $taken = $tenant->run(fn (): bool => User::query()
+                ->where($column, $value)
+                ->when($initialUser, fn ($query) => $query->whereKeyNot($initialUser->getKey()))
+                ->exists());
+
+            if ($taken) {
+                $fail($message);
+            }
+        };
+
         return [
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', new Username, $uniqueInTenant('username', 'Otro usuario de esta empresa ya usa este usuario.')],
+            // Opcional, salvo que se le envíe la invitación.
             'email' => [
-                'required',
+                'nullable',
+                'required_if_accepted:send_invitation',
                 'string',
                 'lowercase',
                 'email',
                 'max:255',
-                // Los usuarios viven en el schema de la empresa: la unicidad se revisa allí.
-                function (string $attribute, mixed $value, Closure $fail) use ($tenant, $initialUser): void {
-                    $taken = $tenant->run(fn (): bool => User::query()
-                        ->where('email', $value)
-                        ->when($initialUser, fn ($query) => $query->whereKeyNot($initialUser->getKey()))
-                        ->exists());
-
-                    if ($taken) {
-                        $fail('Otro usuario de esta empresa ya usa este correo.');
-                    }
-                },
+                $uniqueInTenant('email', 'Otro usuario de esta empresa ya usa este correo.'),
             ],
             // O se envía una invitación (el usuario define su contraseña) o se cambia aquí; ambas opcionales.
             'send_invitation' => ['required', 'boolean'],
@@ -63,8 +69,19 @@ class UpdateTenantInitialUserRequest extends FormRequest
     {
         return [
             'name' => 'nombre',
+            'username' => 'usuario',
             'email' => 'correo',
             'password' => 'contraseña',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.required_if_accepted' => 'El correo es obligatorio para enviar la invitación.',
         ];
     }
 }

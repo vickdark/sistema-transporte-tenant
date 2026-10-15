@@ -7,15 +7,24 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * Usuario de una empresa de transporte. La tabla vive en el schema de cada empresa, así que
  * solo se puede consultar con la tenancy inicializada (o dentro de $tenant->run()).
+ * Ingresa con su usuario o su correo (opcional) y tiene un solo rol (AssignUserRole).
+ *
+ * @property int $id
+ * @property string $name
+ * @property string $username
+ * @property string|null $email
+ * @property string|null $legacy_source tabla legacy de la que se migró (ver App\Actions\Migrations)
+ * @property string|null $legacy_id
  */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable;
 
     /**
      * Formato fijo de fechas: el panel central lee usuarios dentro de $tenant->run() y los usa
@@ -26,12 +35,24 @@ class User extends Authenticatable
     protected $dateFormat = 'Y-m-d H:i:s';
 
     /**
+     * Guard de los usuarios de empresa. Roles y permisos se crean siempre con él: no se toma el
+     * guard por defecto porque en el panel central ese es "central".
+     */
+    public const GUARD = 'web';
+
+    /**
+     * @var string
+     */
+    protected $guard_name = self::GUARD;
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
     ];

@@ -12,10 +12,13 @@ const page = usePage();
 
 <template>
     <SidebarGroup class="px-2 py-0">
-        <SidebarGroupLabel>Platform</SidebarGroupLabel>
+        <SidebarGroupLabel>Menú</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
-                <SidebarMenuButton as-child :is-active="item.href === page.url">
+                <SidebarMenuButton
+                    as-child
+                    :is-active="page.url === item.href || page.url.startsWith(`${item.href}/`) || page.url.startsWith(`${item.href}?`)"
+                >
                     <Link :href="item.href">
                         <component :is="item.icon" />
                         <span>{{ item.title }}</span>

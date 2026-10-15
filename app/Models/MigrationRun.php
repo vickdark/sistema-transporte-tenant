@@ -58,6 +58,24 @@ class MigrationRun extends Model
     }
 
     /**
+     * Pendiente o en curso: todavía se puede cancelar y bloquea otra corrida en la misma empresa.
+     */
+    public function isActive(): bool
+    {
+        return in_array($this->status, [MigrationRunStatus::Pending, MigrationRunStatus::Running], true);
+    }
+
+    /**
+     * Lleva un rato en la cola sin que ningún worker la tome (p. ej. no corre `queue:work`).
+     */
+    public function isWaitingForWorker(): bool
+    {
+        return $this->status === MigrationRunStatus::Pending
+            && $this->created_at !== null
+            && $this->created_at->lt(now()->subSeconds(15));
+    }
+
+    /**
      * @return BelongsTo<MigrationSource, $this>
      */
     public function source(): BelongsTo

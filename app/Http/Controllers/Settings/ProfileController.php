@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Actions\Users\AssignUserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -50,6 +51,8 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        AssignUserRole::ensureIsNotTheLastAdministrator($user, 'password');
 
         Auth::logout();
 

@@ -32,6 +32,7 @@ Route::name('central.')->group(function () {
         Route::put('settings/password', [PasswordController::class, 'update'])->name('settings.password.update');
         Route::inertia('settings/appearance', 'central/settings/Appearance')->name('settings.appearance');
 
+        Route::get('tenants/export/{format}', [TenantController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('tenants.export');
         Route::resource('tenants', TenantController::class);
         Route::put('tenants/{tenant}/initial-user', [TenantInitialUserController::class, 'update'])->name('tenants.initial-user.update');
         Route::post('tenants/{tenant}/suspend', [TenantStatusController::class, 'suspend'])->name('tenants.suspend');
@@ -41,6 +42,11 @@ Route::name('central.')->group(function () {
         Route::get('migrations/sources/create', [MigrationSourceController::class, 'create'])->name('migrations.sources.create');
         Route::post('migrations/sources', [MigrationSourceController::class, 'store'])->name('migrations.sources.store');
         Route::delete('migrations/sources/{source}', [MigrationSourceController::class, 'destroy'])->name('migrations.sources.destroy');
+        Route::get('migrations/runs/create', [MigrationRunController::class, 'create'])->name('migrations.runs.create');
+        Route::get('migrations/runs/export/{format}', [MigrationRunController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('migrations.runs.export');
+        Route::post('migrations/runs', [MigrationRunController::class, 'store'])->name('migrations.runs.store');
         Route::get('migrations/runs/{run}', [MigrationRunController::class, 'show'])->name('migrations.runs.show');
+        Route::post('migrations/runs/{run}/cancel', [MigrationRunController::class, 'cancel'])->name('migrations.runs.cancel');
+        Route::get('migrations/runs/{run}/issues/export/{format}', [MigrationRunController::class, 'exportIssues'])->whereIn('format', ['xlsx', 'pdf'])->name('migrations.runs.issues.export');
     });
 });

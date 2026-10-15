@@ -23,7 +23,7 @@ pest()->extend(TestCase::class)
 // Authentication, settings and dashboard are tenant routes: run them on a tenant domain.
 pest()->beforeEach(function () {
     $this->initializeTenant();
-})->in('Feature/Auth', 'Feature/Settings', 'Feature/DashboardTest.php');
+})->in('Feature/Auth', 'Feature/Settings', 'Feature/Tenant', 'Feature/DashboardTest.php');
 
 /*
 |--------------------------------------------------------------------------

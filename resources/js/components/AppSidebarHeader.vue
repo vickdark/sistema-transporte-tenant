@@ -15,17 +15,17 @@ withDefaults(
 
 <template>
     <header
-        class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 px-6 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 md:px-4"
+        class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
     >
-        <div class="flex items-center gap-2">
-            <SidebarTrigger class="-ml-1" />
+        <div class="flex min-w-0 items-center gap-2">
+            <SidebarTrigger class="-ml-1 shrink-0" />
             <template v-if="breadcrumbs.length > 0">
-                <Breadcrumb>
-                    <BreadcrumbList>
+                <Breadcrumb class="min-w-0">
+                    <BreadcrumbList class="flex-nowrap">
                         <template v-for="(item, index) in breadcrumbs" :key="index">
-                            <BreadcrumbItem>
+                            <BreadcrumbItem :class="{ 'hidden sm:inline-flex': index < breadcrumbs.length - 2 }">
                                 <template v-if="index === breadcrumbs.length - 1">
-                                    <BreadcrumbPage>{{ item.title }}</BreadcrumbPage>
+                                    <BreadcrumbPage class="truncate">{{ item.title }}</BreadcrumbPage>
                                 </template>
                                 <template v-else>
                                     <BreadcrumbLink :href="item.href">
@@ -33,7 +33,10 @@ withDefaults(
                                     </BreadcrumbLink>
                                 </template>
                             </BreadcrumbItem>
-                            <BreadcrumbSeparator v-if="index !== breadcrumbs.length - 1" />
+                            <BreadcrumbSeparator
+                                v-if="index !== breadcrumbs.length - 1"
+                                :class="{ 'hidden sm:block': index < breadcrumbs.length - 2 }"
+                            />
                         </template>
                     </BreadcrumbList>
                 </Breadcrumb>

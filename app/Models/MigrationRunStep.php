@@ -17,6 +17,7 @@ use Stancl\Tenancy\Database\Concerns\CentralConnection;
  * @property int $migration_run_id
  * @property string $module
  * @property MigrationRunStatus $status
+ * @property int|null $total_count
  * @property int $read_count
  * @property int $inserted_count
  * @property int $updated_count
@@ -38,6 +39,7 @@ class MigrationRunStep extends Model
         'migration_run_id',
         'module',
         'status',
+        'total_count',
         'read_count',
         'inserted_count',
         'updated_count',

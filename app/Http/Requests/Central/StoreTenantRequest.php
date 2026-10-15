@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Central;
 
+use App\Rules\Username;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
@@ -26,7 +27,9 @@ class StoreTenantRequest extends FormRequest
         return [
             ...TenantCompanyRules::rules(),
             'admin_name' => ['required', 'string', 'max:255'],
-            'admin_email' => ['required', 'string', 'lowercase', 'email', 'max:255'],
+            'admin_username' => ['required', 'string', new Username],
+            // El correo es opcional, salvo que se le envíe la invitación.
+            'admin_email' => ['nullable', 'required_if_accepted:send_invitation', 'string', 'lowercase', 'email', 'max:255'],
             // Con invitación el administrador define su contraseña; sin ella, se define aquí.
             'send_invitation' => ['required', 'boolean'],
             'admin_password' => ['exclude_if:send_invitation,true', 'required', 'string', 'confirmed', Password::defaults()],
@@ -34,12 +37,13 @@ class StoreTenantRequest extends FormRequest
     }
 
     /**
-     * @return array{name: string, email: string, password: string|null}
+     * @return array{name: string, username: string, email: string|null, password: string|null}
      */
     public function administrator(): array
     {
         return [
             'name' => $this->validated('admin_name'),
+            'username' => $this->validated('admin_username'),
             'email' => $this->validated('admin_email'),
             'password' => $this->boolean('send_invitation') ? null : $this->validated('admin_password'),
         ];
@@ -53,6 +57,7 @@ class StoreTenantRequest extends FormRequest
         return [
             ...TenantCompanyRules::attributes(),
             'admin_name' => 'nombre del administrador',
+            'admin_username' => 'usuario del administrador',
             'admin_email' => 'correo del administrador',
             'admin_password' => 'contraseña del administrador',
         ];
@@ -63,6 +68,9 @@ class StoreTenantRequest extends FormRequest
      */
     public function messages(): array
     {
-        return TenantCompanyRules::messages();
+        return [
+            ...TenantCompanyRules::messages(),
+            'admin_email.required_if_accepted' => 'El correo del administrador es obligatorio para enviarle la invitación.',
+        ];
     }
 }

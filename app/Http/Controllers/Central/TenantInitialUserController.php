@@ -29,7 +29,7 @@ class TenantInitialUserController extends Controller
         $password = $sendsInvitation ? null : $request->validated('password');
 
         $tenant->run(function () use ($request, $user, $password): void {
-            $user->fill($request->safe()->only(['name', 'email']));
+            $user->fill($request->safe()->only(['name', 'username', 'email']));
 
             // Un correo nuevo queda sin verificar, salvo que el panel defina la contraseña ahora.
             if ($user->isDirty('email')) {

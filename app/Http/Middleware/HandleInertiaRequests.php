@@ -44,6 +44,11 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => tenancy()->initialized ? $request->user() : $request->user('central'),
+                // Solo para mostrar u ocultar opciones del menú; la autorización real la hacen las Policies.
+                'permissions' => tenancy()->initialized && $request->user()
+                    ? $request->user()->getAllPermissions()->pluck('name')->values()
+                    : [],
+                'role' => tenancy()->initialized ? $request->user()?->roles->first()?->name : null,
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),

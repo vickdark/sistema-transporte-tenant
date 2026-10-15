@@ -10,12 +10,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Central\DestroyTenantRequest;
 use App\Http\Requests\Central\StoreTenantRequest;
 use App\Http\Requests\Central\UpdateTenantRequest;
+use App\Http\Tables\Central\TenantsTable;
 use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class TenantController extends Controller
 {
@@ -24,33 +26,21 @@ class TenantController extends Controller
      */
     public function index(Request $request): Response
     {
-        $search = $request->string('search')->trim()->value();
-        $status = TenantStatus::tryFrom($request->string('status')->value());
-
-        $tenants = Tenant::query()
-            ->with('subdomain')
-            ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
-                ->whereLike('name', "%{$search}%")
-                ->orWhereLike('nit', "%{$search}%")))
-            ->when($status, fn ($query) => $query->where('status', $status))
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString()
-            ->through(fn (Tenant $tenant): array => [
-                'id' => $tenant->id,
-                'name' => $tenant->name,
-                'nit' => $tenant->nit,
-                'status' => $tenant->status,
-                'status_label' => $tenant->status->label(),
-                'subdomain' => $tenant->subdomain?->domain,
-                'created_at' => $tenant->created_at?->toDateString(),
-            ]);
+        $table = new TenantsTable($request);
 
         return Inertia::render('central/tenants/Index', [
-            'tenants' => $tenants,
-            'filters' => ['search' => $search, 'status' => $status?->value],
+            'tenants' => $table->rows(),
+            'query' => $table->state(),
             'statuses' => $this->statusOptions(),
         ]);
+    }
+
+    /**
+     * Export the filtered list (same search, filters and order as the screen) to Excel or PDF.
+     */
+    public function export(Request $request, string $format): SymfonyResponse
+    {
+        return (new TenantsTable($request))->export($format);
     }
 
     /**
@@ -91,6 +81,7 @@ class TenantController extends Controller
         return Inertia::render('central/tenants/Show', [
             'initialUser' => $initialUser ? [
                 'name' => $initialUser->name,
+                'username' => $initialUser->username,
                 'email' => $initialUser->email,
                 'invitation_pending' => $initialUser->hasPendingInvitation(),
                 'invited_at' => $initialUser->invited_at?->toDateTimeString(),

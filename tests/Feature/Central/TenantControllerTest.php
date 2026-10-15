@@ -4,6 +4,7 @@ use App\Enums\TenantStatus;
 use App\Models\CentralUser;
 use App\Models\Domain;
 use App\Models\MigrationRun;
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\TenantUserInvitation;
@@ -32,6 +33,7 @@ function validTenantPayload(array $overrides = []): array
         'city' => 'Bogotá',
         'subdomain' => 'kemuel',
         'admin_name' => 'Ana Gerente',
+        'admin_username' => 'ana',
         'admin_email' => 'ana@kemuel.test',
         'send_invitation' => true,
         ...$overrides,
@@ -82,7 +84,9 @@ describe('store', function () {
 
         $admin = $tenant->run(fn () => User::query()->where('email', 'ana@kemuel.test')->firstOrFail());
         expect($tenant->initial_user_id)->toBe($admin->id)
-            ->and($admin->hasPendingInvitation())->toBeTrue();
+            ->and($admin->username)->toBe('ana')
+            ->and($admin->hasPendingInvitation())->toBeTrue()
+            ->and($tenant->run(fn () => $admin->hasRole(Role::administrator())))->toBeTrue();
 
         Notification::assertSentTo($admin, TenantUserInvitation::class, function (TenantUserInvitation $notification) use ($admin, $baseDomain) {
             return str_starts_with($notification->invitationUrl($admin), "http://kemuel.{$baseDomain}/invitation/{$admin->id}?");
@@ -165,7 +169,7 @@ describe('store', function () {
 
     test('requires the company, subdomain and administrator data', function () {
         $this->post(route('central.tenants.store'), [])
-            ->assertSessionHasErrors(['name', 'nit', 'subdomain', 'admin_name', 'admin_email']);
+            ->assertSessionHasErrors(['name', 'nit', 'subdomain', 'admin_name', 'admin_username', 'send_invitation']);
 
         expect(Tenant::count())->toBe(0);
     });

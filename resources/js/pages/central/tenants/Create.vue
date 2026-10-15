@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import SubdomainField from '@/components/central/SubdomainField.vue';
 import TenantCompanyFields from '@/components/central/TenantCompanyFields.vue';
-import UserAccessFields from '@/components/central/UserAccessFields.vue';
 import Heading from '@/components/Heading.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import UserAccessFields from '@/components/UserAccessFields.vue';
 import CentralLayout from '@/layouts/CentralLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
@@ -31,6 +31,7 @@ const form = useForm({
     city: '',
     subdomain: '',
     admin_name: '',
+    admin_username: '',
     admin_email: '',
     send_invitation: true,
     admin_password: '',
@@ -70,8 +71,13 @@ const submit = () => {
                         <InputError :message="form.errors.admin_name" />
                     </div>
                     <div class="grid gap-2">
+                        <Label for="admin_username">Usuario</Label>
+                        <Input id="admin_username" v-model="form.admin_username" required autocapitalize="off" placeholder="admin" />
+                        <InputError :message="form.errors.admin_username" />
+                    </div>
+                    <div class="grid gap-2">
                         <Label for="admin_email">Correo</Label>
-                        <Input id="admin_email" type="email" v-model="form.admin_email" required />
+                        <Input id="admin_email" type="email" v-model="form.admin_email" :required="form.send_invitation" />
                         <InputError :message="form.errors.admin_email" />
                     </div>
                 </div>

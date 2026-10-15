@@ -3,7 +3,7 @@
 > Documento vivo. Se ajusta a medida que avanzamos; cada cambio de decisión se anota en el
 > [registro de decisiones](#registro-de-decisiones).
 >
-> **Estado:** Fase 0 terminada (falta solo la siembra de roles, que depende de la Fase 1). Sigue la Fase 1.
+> **Estado:** Fase 0 y Fase 1 terminadas, incluido el motor de corridas de migración con los importadores de roles y usuarios. Sigue la Fase 2.
 
 ---
 
@@ -65,22 +65,26 @@ Leyenda: ⬜ pendiente · 🟨 en curso · ✅ terminado
 - ✅ **Usuario inicial**: al crear la empresa se elige entre enviar invitación por correo o definir la contraseña en el panel (cuenta activa de una vez). Desde la ficha se editan nombre y correo (único dentro del schema), se cambia la contraseña o se envía una invitación nueva (p. ej. tras cambiar el correo). `tenants.initial_user_id` guarda cuál es; `users.invited_at` / `invitation_accepted_at` registran la invitación.
 - ✅ **Subdominio** por inquilino (uno solo, editable): se guarda solo `demo` en `domains.domain` y se identifica con `InitializeTenancyBySubdomainOfBaseDomain` sobre `tenancy.tenant_base_domain`. Sin dominios adicionales.
 - ✅ **Schema por empresa**: al crear el tenant se crea `tenant_<subdominio>` y se migra (síncrono); al eliminarlo se borra; si cambia el subdominio, el schema se renombra (`ALTER SCHEMA`, instantáneo y transaccional). El subdominio admite hasta 56 caracteres para que el nombre del schema quepa en los 63 de PostgreSQL. El alta no va en una transacción (la migración usa otra conexión); si falla a mitad, se elimina el tenant.
-- 🟨 **Alta de inquilino** (`App\Actions\Tenants\CreateTenant`): crea tenant + subdominio + primer usuario y le envía una **invitación** (enlace firmado de 7 días al dominio del tenant, de un solo uso). *Pendiente Fase 1:* sembrar los roles base y asignar el rol Administrador (marcado en el código).
+- ✅ **Alta de inquilino** (`App\Actions\Tenants\CreateTenant`): crea tenant + subdominio (el schema se siembra con permisos y roles base) + primer usuario con el rol Administrador, invitado por correo o con contraseña definida en el panel.
 - ✅ Suspender / reactivar inquilino: middleware `EnsureTenantIsActive` responde 403 con la página "Acceso suspendido" en todas las rutas del tenant; no se borra nada.
 - ✅ Esqueleto del **módulo de migraciones**: tablas `migration_sources` (credenciales cifradas, nunca se envían al frontend), `migration_runs`, `migration_run_steps`, `migration_issues`; pantallas de fuentes (registrar/eliminar), listado de corridas y detalle de corrida. Aún sin importadores ni ejecución.
 
-### Fase 1 — Identidad, roles y permisos (por tenant) ⬜
-- ⬜ Instalar `spatie/laravel-permission` **sin modo teams**: sus tablas van en las migraciones de empresa (`database/migrations/tenant`), así cada schema tiene sus propios roles y permisos.
-- ⬜ **Catálogo de permisos** en un Enum (`recurso.accion`: `users.view`, `roles.manage`, `service-orders.create`…), sincronizado por seeder.
-- ⬜ **Roles base** sembrados por tenant: Administrador (todos los permisos), Administrativo, Coordinador, Asistente de coordinación, Conductor, Cliente, Proveedor, Aliado. Editables por cada empresa.
-- ⬜ **Un rol por usuario** garantizado en 3 niveles: índice único en `model_has_roles`, servicio único de asignación (`syncRoles([$rol])`) y tests. Diseñado para permitir multi-rol más adelante quitando el índice.
-- ⬜ **Usuario vinculado a un actor**: `employee_id` | `client_id` | `supplier_id` | `ally_id` (exactamente uno, con CHECK en BD). *Las columnas y FK se completan cuando existan esas tablas (Fase 2).*
-- ⬜ **Login opción A**: un campo "usuario o correo". `users.username` obligatorio y único (dentro del schema de la empresa); `users.email` opcional y único. Ajustar login, perfil, recuperación de contraseña.
-- ⬜ Pantallas: gestión de usuarios, gestión de roles y su matriz de permisos, menú filtrado por permisos, página "sin acceso asignado".
-- ⬜ Importador: **usuarios + roles** (§5.4).
+### Fase 1 — Identidad, roles y permisos (por tenant) ✅
+- ✅ `spatie/laravel-permission` 6 **sin modo teams**: sus tablas van en las migraciones de empresa, cada schema tiene sus propios roles y permisos. Guard fijo `web` (`User::GUARD`); la caché de permisos usa una clave por empresa (`TenancyServiceProvider`).
+- ✅ **Catálogo de permisos** en `App\Enums\Permission` (`users.view|create|update|delete`, `roles.view|manage`). `php artisan tenants:sync-access` (también al crear la empresa) crea los nuevos, borra los que salieron del catálogo y le da todo al Administrador. Cada módulo de la Fase 2 agrega sus permisos al enum.
+- ✅ **Roles base** (`App\Enums\BaseRole`), identificados por `roles.base_key` para que la empresa pueda renombrarlos. Administrador: protegido, todos los permisos, no se edita ni se borra. Los demás nacen sin permisos y cada empresa los configura.
+- ✅ **Un rol por usuario** en 3 niveles: índice único `(model_id, model_type)` en `model_has_roles`, servicio `App\Actions\Users\AssignUserRole` y tests. Además nunca queda una empresa sin Administrador (cambio de rol, borrado desde la gestión o desde el propio perfil).
+- ➡️ **Usuario vinculado a un actor** (`employee_id` | `client_id` | `supplier_id` | `ally_id`, exactamente uno con CHECK en BD): pasa a la Fase 2, porque necesita las tablas de esas entidades. Lo completa el importador de cada entidad releyendo `usuarios` en la fuente.
+- ✅ **Login "usuario o correo"**: `users.username` obligatorio y único (formato `App\Rules\Username`, sin "@"); `users.email` opcional y único. Sin registro público. La recuperación de contraseña sigue siendo por correo; quien no tiene correo la recibe del administrador.
+- ✅ Pantallas: gestión de usuarios (invitación o contraseña, rol), roles con matriz de permisos por módulo, menú filtrado por permisos, página "sin acceso asignado". Autorización con `UserPolicy` / `RolePolicy` (solo permisos).
+- ✅ **Motor de corridas** (§5.3): desde el panel central se elige fuente, empresa, módulos y modo. Un job (`ExecuteMigrationRun`) verifica el NIT de `configuracion_empresa` contra el de la empresa y corre los pasos en orden dentro del schema. En modo real, una transacción por paso; en simulación, toda la corrida en una transacción que se revierte. Progreso en vivo, cancelación entre lotes, cuarentena y advertencias en `migration_issues`. Una corrida activa por empresa; un módulo exige que sus dependencias vayan en la corrida o ya estén migradas en una corrida real.
+- ✅ Importadores **roles** y **usuarios** (§5.4), idempotentes por `legacy_source` + `legacy_id` (columnas nuevas en `users` y `roles`). Mapeos versionados en `app/Actions/Migrations/Mappings`.
+- ✅ **Listados estándar** (`App\Http\Tables\DataTable` + componente `DataTable.vue`): búsqueda, filtros, orden por columna y paginación en el servidor; exportación a Excel (`openspout`) y PDF (`dompdf`) con los mismos filtros y orden. En móvil cada fila es una tarjeta; acciones con color por tipo (ver, editar, eliminar). **Todo listado nuevo de la Fase 2 se construye con este patrón.**
 
 ### Fase 2 — Módulos de negocio (por tenant) ⬜
-Orden por dependencias. Cada módulo incluye: migraciones, modelos, Policies, pantallas, tests e **importador**.
+Orden por dependencias. Cada módulo incluye: migraciones, modelos, Policies, pantallas (listados con `DataTable`), tests e **importador** (y sus URLs legacy en `LegacyPermissionMap`).
+
+- ⬜ **Usuario vinculado a un actor** (viene de la Fase 1): columnas + CHECK en `users` cuando existan empleados, clientes, proveedores y aliados.
 
 | # | Módulo | Notas |
 |---|---|---|
@@ -160,7 +164,10 @@ debe servir para cualquier empresa futura que llegue con su propia base legacy.
   Administrador recibe todos los permisos.
 - **Permisos:** el legacy usa URLs de archivos PHP; se mapean por URL a permisos nuevos. Un permiso
   de carpeta (`/modulo/`) también daba acceso a los controladores AJAX del módulo.
-- **Usuarios:** un rol por usuario; vínculo a exactamente una entidad (empleado/cliente/proveedor/aliado).
+- **Roles sin rol base equivalente** (`Creador`, `Administrativo 2`): se crean como roles propios de la empresa con el nombre legacy.
+- **Permisos por URL:** una acción se otorga solo si el rol podía completarla en el legacy (la página **y** el permiso de carpeta que abre los controladores AJAX). Las URLs de módulos aún no construidos no otorgan nada y van al reporte; cada módulo de la Fase 2 las agrega al mapeo y una nueva corrida de roles las asigna.
+- **Usuarios:** un rol por usuario; vínculo a exactamente una entidad (empleado/cliente/proveedor/aliado). Se importan todos; el vínculo al actor lo completa el importador de cada entidad (Fase 2), releyéndolo de la fuente.
+- **Choques** con una cuenta que ya existe en la empresa (mismo usuario o correo, p. ej. el usuario inicial): cuarentena, la cuenta existente no se toca.
   `NombreUsuario` → `username`; correo tomado de la entidad vinculada.
   Las contraseñas (bcrypt `$2y$`) son compatibles: se conservan.
 - **Correos repetidos entre usuarios** (persona que es empleado y aliado): el correo se asigna a una
@@ -209,7 +216,7 @@ debe servir para cualquier empresa futura que llegue con su propia base legacy.
 | 1 | Flujo de estados de las órdenes de aliados | Abierto |
 | 2 | Estrategia de la API móvil (compatibilidad vs. nueva API) | Abierto (Fase 3) |
 | 3 | Canal de notificaciones push (gestionado por Laravel) | Abierto |
-| 4 | Fuente legacy en el panel: conexión directa vs. carga de dump | Abierto |
+| 4 | Fuente legacy en el panel: conexión directa vs. carga de dump | Resuelto (2026-10-15): conexión directa de solo lectura a un espejo de la BD de producción; la carga de dump no se implementa por ahora |
 | 5 | Planes / límites por inquilino (si aplica) | Abierto |
 | 6 | Dominio de producción y si el panel va en el dominio raíz o en `admin.` | Abierto |
 
@@ -285,6 +292,7 @@ empresa; cualquier otro subdominio responde 404.
 ```
 php artisan migrate --force           # schema central
 php artisan tenants:migrate --force   # todos los schemas de empresa
+php artisan tenants:sync-access       # catálogo de permisos y roles base en cada empresa
 php artisan config:cache && php artisan route:cache
 php artisan queue:restart
 ```
@@ -321,3 +329,12 @@ balanceador), configurar los proxies de confianza para que Laravel vea el host y
 | 2026-10-14 | Schema con nombre legible `tenant_<subdominio>` (se renombra si cambia el subdominio) en vez del UUID |
 | 2026-10-14 | El usuario inicial puede recibir invitación o contraseña definida por el panel, en el alta y en la edición |
 | 2026-10-14 | Todas las confirmaciones de la interfaz con SweetAlert2 (`useConfirm`); dependencia `sweetalert2` aprobada |
+| 2026-10-14 | Fase 1: sin registro público; los usuarios los crea el administrador de la empresa (o el panel central el inicial) |
+| 2026-10-14 | Fase 1: los roles base distintos de Administrador nacen sin permisos; cada empresa los configura en la matriz |
+| 2026-10-14 | Fase 1: el importador de usuarios y roles se hace junto con el motor de corridas de migración |
+| 2026-10-15 | Importador de roles: los roles legacy sin rol base equivalente se crean como roles propios de la empresa |
+| 2026-10-15 | Importador de usuarios: se importan todos los usuarios ya en la Fase 1; el vínculo al actor se completa en la Fase 2 |
+| 2026-10-15 | Un usuario legacy que choca con una cuenta existente (usuario o correo) va a cuarentena |
+| 2026-10-15 | Fuente de pruebas: espejo de la BD de producción en el servidor (lo prepara el usuario) |
+| 2026-10-15 | Listados: tabla resuelta en el servidor (búsqueda, filtros, orden, paginación) y exportación a Excel/PDF con los mismos filtros; dependencias `openspout/openspout` y `barryvdh/laravel-dompdf` aprobadas |
+| 2026-10-15 | El vínculo usuario↔actor pasa de la Fase 1 a la Fase 2 (necesita las tablas de las entidades) |

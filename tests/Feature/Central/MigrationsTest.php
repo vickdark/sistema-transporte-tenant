@@ -8,6 +8,7 @@ use App\Models\MigrationRunStep;
 use App\Models\MigrationSource;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\ExportedSpreadsheet;
 
 beforeEach(function () {
     $this->admin = CentralUser::factory()->create();
@@ -74,8 +75,34 @@ test('shows a run with its steps and issues', function () {
         ->where('run.tenant', $run->tenant->name)
         ->where('steps.0.read_count', 184)
         ->where('steps.0.quarantined_count', 2)
-        ->where('issues.0.legacy_id', '17')
-        ->where('issuesCount', 1)
+        ->where('issues.data.0.legacy_id', '17')
+        ->where('issues.total', 1)
+    );
+});
+
+test('exports the quarantine report of a run filtered by type', function () {
+    $run = MigrationRun::factory()->create();
+    MigrationIssue::factory()->for($run, 'run')->create(['severity' => 'quarantine', 'legacy_table' => 'usuarios', 'legacy_id' => '17', 'message' => 'No tiene rol.']);
+    MigrationIssue::factory()->for($run, 'run')->create(['severity' => 'warning', 'message' => 'Aviso general']);
+    MigrationIssue::factory()->create(['severity' => 'quarantine', 'message' => 'De otra corrida']);
+
+    $response = $this->get(route('central.migrations.runs.issues.export', ['run' => $run, 'format' => 'xlsx', 'severity' => 'quarantine']));
+
+    $response->assertOk()->assertDownload();
+    expect(ExportedSpreadsheet::rows($response))->toBe([
+        ['Tipo', 'Paso', 'Tabla legacy', 'ID legacy', 'Detalle'],
+        ['Cuarentena', '', 'usuarios', '17', 'No tiene rol.'],
+    ]);
+});
+
+test('lists the runs paginated and filtered by status in the server', function () {
+    MigrationRun::factory()->create(['status' => 'failed']);
+    $completed = MigrationRun::factory()->create(['status' => 'completed']);
+
+    $this->get(route('central.migrations.index', ['status' => 'completed']))->assertInertia(fn (Assert $page) => $page
+        ->has('runs.data', 1)
+        ->where('runs.data.0.id', $completed->id)
+        ->where('query.status', 'completed')
     );
 });
 

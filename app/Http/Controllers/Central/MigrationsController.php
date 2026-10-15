@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Central;
 
+use App\Enums\MigrationRunStatus;
 use App\Http\Controllers\Controller;
-use App\Models\MigrationRun;
+use App\Http\Tables\Central\MigrationRunsTable;
 use App\Models\MigrationSource;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,8 +15,10 @@ use Inertia\Response;
  */
 class MigrationsController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
+        $runs = new MigrationRunsTable($request);
+
         return Inertia::render('central/migrations/Index', [
             'sources' => MigrationSource::query()
                 ->withCount('runs')
@@ -29,20 +33,12 @@ class MigrationsController extends Controller
                     'runs_count' => $source->runs_count,
                     'created_at' => $source->created_at?->toDateString(),
                 ]),
-            'runs' => MigrationRun::query()
-                ->with(['tenant:id,name', 'source:id,name'])
-                ->latest()
-                ->limit(50)
-                ->get()
-                ->map(fn (MigrationRun $run): array => [
-                    'id' => $run->id,
-                    'tenant' => $run->tenant->name,
-                    'source' => $run->source->name,
-                    'mode_label' => $run->mode->label(),
-                    'status' => $run->status,
-                    'status_label' => $run->status->label(),
-                    'created_at' => $run->created_at?->toDateTimeString(),
-                ]),
+            'runs' => $runs->rows(),
+            'query' => $runs->state(),
+            'statuses' => array_map(
+                fn (MigrationRunStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
+                MigrationRunStatus::cases(),
+            ),
         ]);
     }
 }

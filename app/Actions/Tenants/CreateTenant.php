@@ -3,6 +3,7 @@
 namespace App\Actions\Tenants;
 
 use App\Enums\TenantStatus;
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -22,7 +23,7 @@ class CreateTenant
 
     /**
      * @param  array{name: string, nit: string, email?: string|null, phone?: string|null, address?: string|null, city?: string|null}  $company
-     * @param  array{name: string, email: string, password?: string|null}  $administrator  sin password se envía invitación
+     * @param  array{name: string, username: string, email?: string|null, password?: string|null}  $administrator  sin password se envía invitación
      *
      * @throws Throwable
      */
@@ -39,14 +40,21 @@ class CreateTenant
         try {
             $tenant->domains()->create(['domain' => $subdomain]);
 
-            // Fase 1: aquí se siembran los roles base del tenant y se asigna el rol Administrador.
-            $admin = $tenant->run(fn (): User => User::forceCreate([
-                'name' => $administrator['name'],
-                'email' => $administrator['email'],
-                'password' => $password ?? Str::password(40),
-                // Con contraseña definida en el panel la cuenta queda activa de una vez.
-                'email_verified_at' => $password !== null ? now() : null,
-            ]));
+            // Los roles base ya se sembraron al crear el tenant (SeedTenantAccessControl).
+            $admin = $tenant->run(function () use ($administrator, $password): User {
+                $admin = User::forceCreate([
+                    'name' => $administrator['name'],
+                    'username' => $administrator['username'],
+                    'email' => $administrator['email'],
+                    'password' => $password ?? Str::password(40),
+                    // Con contraseña definida en el panel la cuenta queda activa de una vez.
+                    'email_verified_at' => $password !== null ? now() : null,
+                ]);
+
+                $admin->syncRoles([Role::administrator()]);
+
+                return $admin;
+            });
 
             $tenant->update(['initial_user_id' => $admin->getKey()]);
         } catch (Throwable $exception) {

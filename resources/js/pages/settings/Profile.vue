@@ -22,7 +22,7 @@ defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Profile settings',
+        title: 'Perfil',
         href: '/settings/profile',
     },
 ];
@@ -32,7 +32,7 @@ const user = page.props.auth.user as User;
 
 const form = useForm({
     name: user.name,
-    email: user.email,
+    email: user.email ?? '',
 });
 
 const submit = () => {
@@ -44,34 +44,33 @@ const submit = () => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Profile settings" />
+        <Head title="Perfil" />
 
         <SettingsLayout>
             <div class="flex flex-col space-y-6">
-                <HeadingSmall title="Profile information" description="Update your name and email address" />
+                <HeadingSmall title="Datos del perfil" description="Actualiza tu nombre y tu correo" />
 
                 <form @submit.prevent="submit" class="space-y-6">
                     <div class="grid gap-2">
-                        <Label for="name">Name</Label>
-                        <Input id="name" class="mt-1 block w-full" v-model="form.name" required autocomplete="name" placeholder="Full name" />
+                        <Label for="username">Usuario</Label>
+                        <Input id="username" class="mt-1 block w-full" :model-value="user.username" readonly disabled />
+                        <p class="text-sm text-muted-foreground">Lo asigna el administrador de la empresa.</p>
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="name">Nombre</Label>
+                        <Input id="name" class="mt-1 block w-full" v-model="form.name" required autocomplete="name" />
                         <InputError class="mt-2" :message="form.errors.name" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="email">Email address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            class="mt-1 block w-full"
-                            v-model="form.email"
-                            required
-                            autocomplete="username"
-                            placeholder="Email address"
-                        />
+                        <Label for="email">Correo (opcional)</Label>
+                        <Input id="email" type="email" class="mt-1 block w-full" v-model="form.email" autocomplete="email" />
+                        <p class="text-sm text-muted-foreground">Sirve para recuperar tu contraseña y para ingresar con él.</p>
                         <InputError class="mt-2" :message="form.errors.email" />
                     </div>
 
-                    <div v-if="mustVerifyEmail && !user.email_verified_at">
+                    <div v-if="mustVerifyEmail && user.email && !user.email_verified_at">
                         <p class="mt-2 text-sm text-neutral-800">
                             Your email address is unverified.
                             <Link
@@ -90,7 +89,7 @@ const submit = () => {
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <Button :disabled="form.processing">Save</Button>
+                        <Button :disabled="form.processing">Guardar</Button>
 
                         <TransitionRoot
                             :show="form.recentlySuccessful"
@@ -99,7 +98,7 @@ const submit = () => {
                             leave="transition ease-in-out"
                             leave-to="opacity-0"
                         >
-                            <p class="text-sm text-neutral-600">Saved.</p>
+                            <p class="text-sm text-neutral-600">Guardado.</p>
                         </TransitionRoot>
                     </div>
                 </form>

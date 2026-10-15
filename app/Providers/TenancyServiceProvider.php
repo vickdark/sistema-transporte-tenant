@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Http\Middleware\InitializeTenancyBySubdomainOfBaseDomain;
+use App\Jobs\SeedTenantAccessControl;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\PermissionRegistrar;
 use Stancl\JobPipeline\JobPipeline;
 use Stancl\Tenancy\DatabaseConfig;
 use Stancl\Tenancy\Events;
@@ -33,6 +35,7 @@ class TenancyServiceProvider extends ServiceProvider
                 JobPipeline::make([
                     Jobs\CreateDatabase::class,
                     Jobs\MigrateDatabase::class,
+                    SeedTenantAccessControl::class,
                 ])->send(function (Events\TenantCreated $event) {
                     return $event->tenant;
                 })->shouldBeQueued(false),
@@ -79,9 +82,17 @@ class TenancyServiceProvider extends ServiceProvider
             ],
 
             Events\BootstrappingTenancy::class => [],
-            Events\TenancyBootstrapped::class => [],
+            // Roles y permisos son de cada empresa: su caché también (y la colección en memoria
+            // del registrar se descarta al cambiar de empresa).
+            Events\TenancyBootstrapped::class => [
+                fn (Events\TenancyBootstrapped $event) => $this->scopePermissionCache(
+                    config('permission.cache.key').'.tenant.'.$event->tenancy->tenant->getTenantKey()
+                ),
+            ],
             Events\RevertingToCentralContext::class => [],
-            Events\RevertedToCentralContext::class => [],
+            Events\RevertedToCentralContext::class => [
+                fn () => $this->scopePermissionCache(config('permission.cache.key')),
+            ],
 
             // Resource syncing
             Events\SyncedResourceSaved::class => [
@@ -96,6 +107,13 @@ class TenancyServiceProvider extends ServiceProvider
     public function register()
     {
         //
+    }
+
+    protected function scopePermissionCache(string $cacheKey): void
+    {
+        $registrar = $this->app->make(PermissionRegistrar::class);
+        $registrar->cacheKey = $cacheKey;
+        $registrar->clearPermissionsCollection();
     }
 
     public function boot()

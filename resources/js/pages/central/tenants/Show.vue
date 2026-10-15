@@ -80,9 +80,9 @@ const toggleStatus = async () => {
     <CentralLayout :breadcrumbs="breadcrumbs">
         <Head :title="tenant.name" />
 
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="space-y-1">
-                <div class="flex items-center gap-3">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0 space-y-1">
+                <div class="flex flex-wrap items-center gap-3">
                     <h2 class="text-xl font-semibold tracking-tight">{{ tenant.name }}</h2>
                     <StatusBadge :status="tenant.status" :label="tenant.status_label" />
                 </div>
@@ -92,13 +92,13 @@ const toggleStatus = async () => {
                     :href="tenant.url"
                     target="_blank"
                     rel="noopener"
-                    class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
+                    class="inline-flex items-center gap-1 break-all text-sm text-muted-foreground hover:underline"
                 >
                     {{ tenant.url }}
                     <ExternalLink class="size-3" />
                 </a>
             </div>
-            <div class="flex gap-2">
+            <div class="grid grid-cols-2 gap-2 sm:flex">
                 <Button variant="outline" as-child>
                     <Link :href="route('central.tenants.edit', { tenant: tenant.id })">
                         <Pencil />
@@ -111,14 +111,14 @@ const toggleStatus = async () => {
             </div>
         </div>
 
-        <dl class="grid gap-x-8 gap-y-4 rounded-xl border border-sidebar-border/70 p-6 sm:grid-cols-2 lg:grid-cols-3">
+        <dl class="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border border-sidebar-border/70 p-4 min-[420px]:grid-cols-2 sm:p-6 xl:grid-cols-3">
             <div v-for="item in details" :key="item.label">
                 <dt class="text-xs uppercase text-muted-foreground">{{ item.label }}</dt>
-                <dd class="mt-1 text-sm">{{ item.value || '—' }}</dd>
+                <dd class="mt-1 break-words text-sm">{{ item.value || '—' }}</dd>
             </div>
         </dl>
 
-        <TenantInitialUserCard v-if="initialUser" :key="initialUser.email" :tenant-id="tenant.id" :user="initialUser" />
+        <TenantInitialUserCard v-if="initialUser" :key="`${initialUser.username}-${initialUser.email}`" :tenant-id="tenant.id" :user="initialUser" />
 
         <DeleteTenantSection v-if="tenant.subdomain" :tenant-id="tenant.id" :tenant-name="tenant.name" :subdomain="tenant.subdomain" />
     </CentralLayout>

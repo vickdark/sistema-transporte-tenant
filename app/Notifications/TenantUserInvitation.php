@@ -34,7 +34,7 @@ class TenantUserInvitation extends Notification
         return (new MailMessage)
             ->subject("Invitación a {$this->tenant->name}")
             ->greeting("Hola, {$notifiable->name}")
-            ->line("Se creó tu cuenta de administrador para {$this->tenant->name}.")
+            ->line("Tienes una cuenta en {$this->tenant->name}. Tu usuario es: {$notifiable->username}")
             ->line('Define tu contraseña para empezar a usar el sistema.')
             ->action('Definir contraseña', $this->invitationUrl($notifiable))
             ->line('Este enlace vence en '.self::EXPIRATION_DAYS.' días.');

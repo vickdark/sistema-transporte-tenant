@@ -4,6 +4,7 @@ namespace App\Http\Tables;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 use Closure;
+use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -48,9 +49,10 @@ abstract class DataTable
     abstract protected function query(): Builder;
 
     /**
-     * Columnas por las que se puede ordenar: clave que envía la vista => columna SQL.
+     * Columnas por las que se puede ordenar: clave que envía la vista => columna SQL (o una
+     * expresión, p. ej. un nombre calculado).
      *
-     * @return array<string, string>
+     * @return array<string, string|Expression>
      */
     abstract protected function sortable(): array;
 

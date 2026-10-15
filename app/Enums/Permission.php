@@ -24,16 +24,21 @@ enum Permission: string
     case SuppliersCreate = 'suppliers.create';
     case SuppliersUpdate = 'suppliers.update';
     case SuppliersLink = 'suppliers.link';
+    case ClientsView = 'clients.view';
+    case ClientsCreate = 'clients.create';
+    case ClientsUpdate = 'clients.update';
+    case ClientsDeactivate = 'clients.deactivate';
 
     public function label(): string
     {
         return match ($this) {
-            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView => 'Ver',
-            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate => 'Crear',
-            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate => 'Editar',
+            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView, self::ClientsView => 'Ver',
+            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate, self::ClientsCreate => 'Crear',
+            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate, self::ClientsUpdate => 'Editar',
             self::UsersDelete => 'Eliminar',
             self::RolesManage, self::CompanyManage => 'Administrar',
             self::AlliesLink, self::SuppliersLink => 'Convertir en mixto / revertir',
+            self::ClientsDeactivate => 'Inhabilitar / habilitar',
         };
     }
 
@@ -48,6 +53,7 @@ enum Permission: string
             self::CompanyManage => 'Configuración de la empresa',
             self::AlliesView, self::AlliesCreate, self::AlliesUpdate, self::AlliesLink => 'Aliados',
             self::SuppliersView, self::SuppliersCreate, self::SuppliersUpdate, self::SuppliersLink => 'Proveedores',
+            self::ClientsView, self::ClientsCreate, self::ClientsUpdate, self::ClientsDeactivate => 'Clientes',
         };
     }
 

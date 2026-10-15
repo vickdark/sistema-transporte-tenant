@@ -4,6 +4,7 @@ namespace App\Actions\Migrations\Importers;
 
 use App\Actions\Users\AssignUserRole;
 use App\Models\Ally;
+use App\Models\Client;
 use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\User;
@@ -46,9 +47,9 @@ class UsersImporter implements LegacyImporter
     /**
      * Aliados y proveedores ya importados: id legacy => id nuevo.
      *
-     * @var array{allies: array<string, int>, suppliers: array<string, int>}
+     * @var array{allies: array<string, int>, suppliers: array<string, int>, clients: array<string, int>}
      */
-    private array $actorIds = ['allies' => [], 'suppliers' => []];
+    private array $actorIds = ['allies' => [], 'suppliers' => [], 'clients' => []];
 
     public function __construct(private AssignUserRole $assignUserRole) {}
 
@@ -66,6 +67,7 @@ class UsersImporter implements LegacyImporter
         $this->actorIds = [
             'allies' => Ally::query()->where('legacy_source', ThirdPartiesImporter::ALLIES_TABLE)->pluck('id', 'legacy_id')->all(),
             'suppliers' => Supplier::query()->where('legacy_source', ThirdPartiesImporter::SUPPLIERS_TABLE)->pluck('id', 'legacy_id')->all(),
+            'clients' => Client::query()->where('legacy_source', ClientsImporter::LEGACY_TABLE)->pluck('id', 'legacy_id')->all(),
         ];
 
         foreach ($legacyUsers as $legacyUser) {
@@ -161,9 +163,10 @@ class UsersImporter implements LegacyImporter
             'password' => $passwordHash,
             'legacy_source' => self::LEGACY_TABLE,
             'legacy_id' => (string) $legacyUser->id,
-            // Si su aliado o proveedor ya se importó queda enlazado; si no, lo enlaza ese importador.
+            // Si su aliado, proveedor o cliente ya se importó queda enlazado; si no, lo enlaza ese importador.
             'ally_id' => $link === 'AliadoID' ? ($this->actorIds['allies'][(string) $links[$link]] ?? null) : null,
             'supplier_id' => $link === 'ProveedorID' ? ($this->actorIds['suppliers'][(string) $links[$link]] ?? null) : null,
+            'client_id' => $link === 'ClienteID' ? ($this->actorIds['clients'][(string) $links[$link]] ?? null) : null,
         ])->save();
 
         try {

@@ -40,6 +40,12 @@ class LegacyPermissionMap
         'suppliers.create' => [['/proveedores/create.php', '/proveedores/']],
         'suppliers.update' => [['/proveedores/update.php', '/proveedores/']],
         'suppliers.link' => [['/proveedores/']],
+        // Clientes: inhabilitar se llama desde el listado (controlador de la carpeta) y habilitar
+        // desde la pantalla de inactivos, así que hacen falta ambos.
+        'clients.view' => [['/clientes/index.php'], ['/clientes/']],
+        'clients.create' => [['/clientes/create.php', '/clientes/']],
+        'clients.update' => [['/clientes/update.php', '/clientes/']],
+        'clients.deactivate' => [['/clientes/', '/clientes/inactivos/index.php'], ['/clientes/', '/clientes/inactivos/']],
     ];
 
     /**
@@ -51,6 +57,10 @@ class LegacyPermissionMap
         '/usuarios/show.php',
         '/proveedores/show.php',
         '/proveedores_aliados/show.php',
+        '/clientes/show.php',
+        '/clientes/inactivos/index.php',
+        '/clientes/inactivos/',
+        '/clientes/inactivos/show.php',
     ];
 
     /**
@@ -59,7 +69,6 @@ class LegacyPermissionMap
      * @var array<string, string>
      */
     private const PENDING_MODULES = [
-        'clientes' => 'Clientes',
         'clientesdash' => 'Portal de clientes',
         'combustible' => 'Combustible',
         'conductor' => 'Operación del conductor',

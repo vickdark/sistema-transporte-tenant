@@ -129,6 +129,6 @@ test('the run form lists sources, tenants and modules with their dependencies', 
         ->component('central/migrations/runs/Create')
         ->where('sources.0.value', $this->source->id)
         ->where('tenants.0.value', $this->tenant->id)
-        ->where('modules.3', ['value' => 'users', 'label' => 'Usuarios', 'depends_on' => ['roles']])
+        ->where('modules.4', ['value' => 'users', 'label' => 'Usuarios', 'depends_on' => ['roles']])
     );
 });

@@ -1,11 +1,13 @@
 <?php
 
 use App\Enums\BaseRole;
+use App\Enums\ClientType;
 use App\Enums\MigrationIssueSeverity;
 use App\Enums\MigrationRunStatus;
 use App\Enums\Permission;
 use App\Models\Ally;
 use App\Models\CentralUser;
+use App\Models\Client;
 use App\Models\CompanyProfile;
 use App\Models\MigrationRun;
 use App\Models\MigrationSource;
@@ -305,6 +307,56 @@ test('grants the ally and supplier permissions the legacy role could complete', 
 
     $this->tenant->run(fn () => expect(Role::query()->where('legacy_id', '5')->sole()->permissions->pluck('name')->sort()->values()->all())
         ->toBe(['allies.view', 'suppliers.create', 'suppliers.link', 'suppliers.view']));
+});
+
+test('imports the clients of the company and of each ally keeping their data', function () {
+    $this->legacy->table('aliados')->insert(['id' => 55, 'nombre' => 'ALIADO 55']);
+    $this->legacy->table('clientes')->insert([
+        ['ID' => 1, 'Tipo' => 'Empresa', 'TipoIdentificacion' => 'NIT', 'Identificacion' => '830085844', 'DV' => '1', 'RazonSocial' => 'WOOD ENGINEERING SAS', 'Telefono' => '300 443 3162', 'estado' => 'Activo', 'aliadoid' => null],
+        ['ID' => 127, 'Tipo' => 'Persona', 'TipoIdentificacion' => 'Cédula de Ciudadanía', 'Identificacion' => '1043652341', 'DV' => null, 'RazonSocial' => null, 'Telefono' => '300-44', 'estado' => 'Inactivo', 'aliadoid' => 55],
+    ]);
+
+    $run = startLegacyRun(['third_parties', 'clients']);
+
+    expect($run->steps()->where('module', 'clients')->sole()->inserted_count)->toBe(2)
+        ->and($run->issues()->pluck('message')->all())->toContain('1 clientes con teléfono que no tiene entre 7 y 15 dígitos. Se migran como están; al editarlos se pedirá corregirlo.');
+    $this->tenant->run(function () {
+        $company = Client::query()->where('legacy_id', '1')->sole();
+        $allyClient = Client::query()->where('legacy_id', '127')->sole();
+
+        expect($company->only('type', 'phone', 'ally_id', 'is_active'))->toBe(['type' => ClientType::Company, 'phone' => '3004433162', 'ally_id' => null, 'is_active' => true])
+            ->and($allyClient->only('phone', 'is_active'))->toBe(['phone' => '300-44', 'is_active' => false])
+            ->and($allyClient->ally->name)->toBe('ALIADO 55');
+    });
+});
+
+test('quarantines a client whose owner or type cannot be known', function () {
+    $this->legacy->table('clientes')->insert([
+        ['ID' => 1, 'Tipo' => 'Persona', 'aliadoid' => 99, 'estado' => 'Activo'],
+        ['ID' => 2, 'Tipo' => 'Gobierno', 'aliadoid' => null, 'estado' => 'Activo'],
+    ]);
+
+    $run = startLegacyRun(['third_parties', 'clients']);
+
+    expect($run->issues()->where('severity', MigrationIssueSeverity::Quarantine)->orderBy('legacy_id')->pluck('message', 'legacy_id')->all())->toBe([
+        '1' => 'Su aliado #99 no está importado: no se sabe a quién pertenece. Migra primero aliados y proveedores.',
+        '2' => 'Tipo de cliente desconocido: "Gobierno".',
+    ]);
+    $this->tenant->run(fn () => expect(Client::count())->toBe(0));
+});
+
+test('reports the clients repeated within the same owner', function () {
+    $this->legacy->table('clientes')->insert([
+        ['ID' => 10, 'Identificacion' => '900123456', 'CodigoSucursal' => null, 'aliadoid' => null],
+        ['ID' => 11, 'Identificacion' => '900123456', 'CodigoSucursal' => null, 'aliadoid' => null],
+        ['ID' => 12, 'Identificacion' => '900123456', 'CodigoSucursal' => '13001', 'aliadoid' => null],
+    ]);
+
+    $run = startLegacyRun(['third_parties', 'clients']);
+
+    $this->tenant->run(fn () => expect(Client::count())->toBe(3));
+    expect($run->issues()->pluck('message')->all())
+        ->toContain('2 clientes de la empresa con la identificación 900123456 (#10, #11). Se migran todos; conviene depurarlos.');
 });
 
 test('refuses a source that belongs to another company', function () {

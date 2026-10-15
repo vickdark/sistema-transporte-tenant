@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Tenant\AllyController;
+use App\Http\Controllers\Tenant\ClientController;
 use App\Http\Controllers\Tenant\CompanyProfileController;
 use App\Http\Controllers\Tenant\RoleController;
 use App\Http\Controllers\Tenant\SupplierController;
@@ -58,6 +59,12 @@ Route::middleware([
         Route::resource('suppliers', SupplierController::class)->except('destroy');
         Route::post('suppliers/{supplier}/convert', [SupplierController::class, 'convert'])->name('suppliers.convert');
         Route::delete('suppliers/{supplier}/convert', [SupplierController::class, 'revert'])->name('suppliers.revert');
+
+        // Clientes: como en el legacy no se eliminan; se inhabilitan y se habilitan.
+        Route::get('clients/export/{format}', [ClientController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('clients.export');
+        Route::resource('clients', ClientController::class)->except('destroy');
+        Route::post('clients/{client}/deactivate', [ClientController::class, 'deactivate'])->name('clients.deactivate');
+        Route::post('clients/{client}/activate', [ClientController::class, 'activate'])->name('clients.activate');
 
         Route::get('roles/export/{format}', [RoleController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('roles.export');
         Route::resource('roles', RoleController::class)->except('show');

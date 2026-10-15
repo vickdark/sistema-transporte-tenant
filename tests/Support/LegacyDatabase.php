@@ -82,9 +82,21 @@ class LegacyDatabase
         }
         $schema->create('clientes', function (Blueprint $table) {
             $table->increments('ID');
+            $table->string('Tipo')->default('Persona');
+            $table->string('TipoIdentificacion')->default('Cédula de Ciudadanía');
+            $table->string('Identificacion')->default('1043652341');
+            $table->string('DV')->nullable();
+            $table->string('CodigoSucursal')->nullable();
             $table->string('RazonSocial')->nullable();
+            $table->string('NombreComercial')->nullable();
             $table->string('Nombres')->nullable();
             $table->string('Apellidos')->nullable();
+            $table->string('Ciudad')->default('Cartagena');
+            $table->string('Direccion')->default('Calle 1 # 2-3');
+            $table->string('Telefono')->default('3001234567');
+            $table->string('Extension')->nullable();
+            $table->string('estado')->default('Activo');
+            $table->integer('aliadoid')->nullable();
         });
 
         $legacy->table('configuracion_empresa')->insert(['razon_social' => 'Transportes de prueba SAS', 'nit' => $nit]);

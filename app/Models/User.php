@@ -23,6 +23,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $legacy_id
  * @property int|null $ally_id aliado al que pertenece la cuenta (portal del aliado)
  * @property int|null $supplier_id proveedor al que pertenece la cuenta (portal del proveedor)
+ * @property int|null $client_id cliente al que pertenece la cuenta (portal del cliente)
  */
 class User extends Authenticatable
 {
@@ -99,6 +100,14 @@ class User extends Authenticatable
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    /**
+     * @return BelongsTo<Client, $this>
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function hasPendingInvitation(): bool

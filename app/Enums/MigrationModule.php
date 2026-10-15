@@ -2,6 +2,7 @@
 
 namespace App\Enums;
 
+use App\Actions\Migrations\Importers\ClientsImporter;
 use App\Actions\Migrations\Importers\CompanyImporter;
 use App\Actions\Migrations\Importers\LegacyImporter;
 use App\Actions\Migrations\Importers\RolesImporter;
@@ -17,6 +18,7 @@ enum MigrationModule: string
     case Company = 'company';
     case Roles = 'roles';
     case ThirdParties = 'third_parties';
+    case Clients = 'clients';
     case Users = 'users';
 
     public function label(): string
@@ -25,6 +27,7 @@ enum MigrationModule: string
             self::Company => 'Configuración de la empresa',
             self::Roles => 'Roles y permisos',
             self::ThirdParties => 'Aliados y proveedores',
+            self::Clients => 'Clientes',
             self::Users => 'Usuarios',
         };
     }
@@ -36,6 +39,7 @@ enum MigrationModule: string
     {
         return match ($this) {
             self::Company, self::Roles, self::ThirdParties => [],
+            self::Clients => [self::ThirdParties],
             self::Users => [self::Roles],
         };
     }
@@ -49,6 +53,7 @@ enum MigrationModule: string
             self::Company => CompanyImporter::class,
             self::Roles => RolesImporter::class,
             self::ThirdParties => ThirdPartiesImporter::class,
+            self::Clients => ClientsImporter::class,
             self::Users => UsersImporter::class,
         };
     }

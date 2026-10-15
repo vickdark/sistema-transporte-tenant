@@ -169,6 +169,24 @@ describe('create and update', function () {
         $this->put(route('vehicles.update', $existing), vehiclePayload())->assertSessionHasNoErrors();
     });
 
+    test('validates a field live without saving anything', function () {
+        Vehicle::factory()->create(['plate' => 'TSX123']);
+        $live = ['Precognition' => 'true', 'Precognition-Validate-Only' => 'plate'];
+
+        $this->withHeaders($live)->postJson(route('vehicles.store'), ['plate' => 'tsx 123'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['plate' => 'La placa ya está registrada en otro vehículo.'])
+            ->assertJsonMissingValidationErrors('brand');
+        $this->withHeaders($live)->postJson(route('vehicles.store'), ['plate' => 'abc987'])
+            ->assertNoContent()
+            ->assertHeader('Precognition-Success', 'true');
+        $this->withHeaders(['Precognition' => 'true', 'Precognition-Validate-Only' => 'documents.soat.expires_on'])
+            ->postJson(route('vehicles.store'), ['documents' => ['soat' => ['number' => '13245768']]])
+            ->assertJsonValidationErrors(['documents.soat.expires_on' => 'El campo fecha de vencimiento (SOAT) es obligatorio.']);
+
+        expect(Vehicle::query()->count())->toBe(1);
+    });
+
     test('editing can change the owner', function () {
         $vehicle = Vehicle::factory()->ownedBy(Ally::factory()->create())->create();
         $supplier = Supplier::factory()->create();

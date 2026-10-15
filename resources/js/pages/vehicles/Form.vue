@@ -97,7 +97,11 @@ const form = useForm({
             ];
         }),
     ) as Record<string, DocumentFormValue>,
-});
+}).withPrecognition(
+    // Validación en vivo (Precognition) con las mismas reglas del servidor (VehicleRequest).
+    isEditing.value ? 'put' : 'post',
+    isEditing.value ? route('vehicles.update', { vehicle: props.item!.id }) : route('vehicles.store'),
+);
 
 const errors = computed(() => form.errors as Record<string, string | undefined>);
 
@@ -110,7 +114,10 @@ const documentErrors = (type: string) => ({
 });
 
 const owner = ref<SearchSelectOption | null>(props.item?.owner ?? null);
-watch(owner, (selected) => (form.owner_id = selected?.value ?? null));
+watch(owner, (selected) => {
+    form.owner_id = selected?.value ?? null;
+    form.validate('owner_id');
+});
 watch(
     () => form.owner_type,
     () => (owner.value = null),
@@ -163,6 +170,31 @@ const errorCount = (sectionId: string) => {
 
 const totalErrors = computed(() => Object.values(errors.value).filter(Boolean).length);
 const firstSectionWithErrors = computed(() => sections.value.find((section) => errorCount(section.id) > 0)?.id ?? null);
+
+/**
+ * Valida en vivo el campo que se acaba de dejar (el id del input es el nombre del campo; en los
+ * documentos, documents-<tipo>-<campo>). En un documento llenado se valida también su vencimiento,
+ * que pasa a ser obligatorio. Los archivos se validan al guardar.
+ */
+const validateField = (event: FocusEvent) => {
+    const id = (event.target as HTMLElement | null)?.id ?? '';
+    const documentField = id.match(/^documents-(.+)-(number|issued_on|expires_on)$/);
+
+    if (documentField) {
+        const [, type, field] = documentField;
+        const value = form.documents[type];
+        const filled = Boolean(value.number || value.issued_on || value.expires_on || value.file);
+        const fields: `documents.${string}`[] = [`documents.${type}.${field}`];
+
+        if (filled && props.documentTypes.find((document) => document.type === type)?.expires) {
+            fields.push(`documents.${type}.expires_on`);
+        }
+
+        form.validate({ only: [...new Set(fields)] });
+    } else if (id in form.data()) {
+        form.validate(id as keyof ReturnType<typeof form.data>);
+    }
+};
 
 const goTo = (sectionId: string) => document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -223,7 +255,7 @@ const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-
                     </ul>
                 </nav>
 
-                <form class="flex min-w-0 max-w-4xl flex-col gap-6" novalidate @submit.prevent="submit">
+                <form class="flex min-w-0 max-w-4xl flex-col gap-6" novalidate @submit.prevent="submit" @focusout="validateField">
                     <FormSection
                         id="vehicle"
                         title="Vehículo"
@@ -423,6 +455,10 @@ const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-
                             <CircleAlert class="size-4" />
                             {{ totalErrors === 1 ? 'Hay 1 campo por corregir' : `Hay ${totalErrors} campos por corregir` }}
                         </button>
+                        <span v-else-if="form.validating" class="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <LoaderCircle class="size-4 animate-spin" />
+                            Validando…
+                        </span>
                         <span v-else class="text-sm text-muted-foreground">Los campos con * son obligatorios.</span>
                         <div class="flex flex-col-reverse gap-2 sm:ml-auto sm:flex-row">
                             <Button variant="outline" as-child class="w-full sm:w-auto">

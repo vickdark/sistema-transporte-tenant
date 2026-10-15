@@ -3,7 +3,7 @@
 > Documento vivo. Se ajusta a medida que avanzamos; cada cambio de decisión se anota en el
 > [registro de decisiones](#registro-de-decisiones).
 >
-> **Estado:** Fase 0 y Fase 1 terminadas. Fase 2 en curso: 2.1 (configuración de la empresa) terminada.
+> **Estado:** Fase 0 y Fase 1 terminadas. Fase 2 en curso: 2.1 (configuración de la empresa) y 2.2 (aliados y proveedores) terminadas.
 
 ---
 
@@ -89,11 +89,11 @@ Orden por dependencias. Cada módulo incluye: migraciones, modelos, Policies, pa
 | # | Módulo | Notas |
 |---|---|---|
 | 2.1 ✅ | Configuración de la empresa | Razón social y NIT siguen en el panel central (solo lectura en la empresa). En el schema (`company_profiles`, una fila): contacto para documentos, tipo de servicio, habilitación del FUEC (territorial 3 dígitos, resolución 4, año 2), logo y firma (privados por empresa; la firma solo la ve quien tiene `company.manage`). Importador `company` desde `configuracion_empresa` |
-| 2.2 | Terceros: aliados y proveedores | Entidades del tenant (no tenants). Relación aliado↔proveedor sin triggers |
+| 2.2 ✅ | Terceros: aliados y proveedores | Igual que el legacy: dos módulos gemelos (nombre obligatorio; nombre y NIT no se repiten dentro del módulo), sin eliminar ni estado. **Convertir** (crea o reutiliza el gemelo con el mismo NIT y queda mixto) y **Revertir** (rompe el vínculo, ambos siguen) en `App\Actions\ThirdParties\LinkAllyAndSupplier`, sin triggers; el vínculo vive solo en `suppliers.ally_id` (único). `users.ally_id` / `users.supplier_id`. Importador `third_parties` (mixtos solo si son recíprocos; repetidos se migran y se reportan) |
 | 2.3 | Clientes | Persona/empresa, sucursales; dueño: empresa o aliado |
 | 2.4 | Rutas | |
-| 2.5 | Empleados y conductores | "Conductor" es una función del empleado, no un rol. Documentos con vencimiento |
-| 2.6 | Vehículos | Documentos, fotos, partes (catálogo en tabla), convenios |
+| 2.5 | Empleados y conductores | "Conductor" es una función del empleado, no un rol. Documentos con vencimiento. Al convertir/revertir un aliado o proveedor, sus conductores se asocian/desasocian al otro perfil (acción `LinkAllyAndSupplier`, reemplaza el trigger legacy) |
+| 2.6 | Vehículos | Documentos, fotos, partes (catálogo en tabla), convenios. Igual que 2.5: vehículos de aliados/proveedores mixtos en `LinkAllyAndSupplier`; listado y ficha de terceros muestran sus vehículos y conductores |
 | 2.7 | Contratos propios y contratos de aliados | Entidades separadas |
 | 2.8 | **Órdenes de servicio** | Núcleo. Máquina de estados explícita, pasajeros, apoyo, observaciones, kilometrajes |
 | 2.9 | **Órdenes de aliados** | **Dominio separado** de las órdenes propias (mismo esquema legacy, distinto negocio). Flujo de estados por definir |
@@ -340,3 +340,6 @@ balanceador), configurar los proxies de confianza para que Laravel vea el host y
 | 2026-10-15 | El vínculo usuario↔actor pasa de la Fase 1 a la Fase 2 (necesita las tablas de las entidades) |
 | 2026-10-15 | 2.1: razón social y NIT son del panel central; el resto de la configuración vive en el schema de la empresa y la edita quien tenga `company.manage` |
 | 2026-10-15 | 2.1: logo y firma del FUEC se suben como imágenes PNG/JPG (máx. 2 MB) a almacenamiento privado por empresa; no se aceptan SVG |
+| 2026-10-15 | 2.2: aliados y proveedores funcionan como en el legacy; se quita el estado (Activo/Inactivo) porque ninguna pantalla lo usaba |
+| 2026-10-15 | 2.2: proveedores repetidos (mismo NIT) se migran todos y se reportan; los NIT se guardan sin espacios (en el legacy un espacio al final hacía que Convertir duplicara en vez de vincular) |
+| 2026-10-15 | 2.2: permisos `allies.*` y `suppliers.*` separados en ver, crear, editar y convertir/revertir |

@@ -16,15 +16,24 @@ enum Permission: string
     case RolesView = 'roles.view';
     case RolesManage = 'roles.manage';
     case CompanyManage = 'company.manage';
+    case AlliesView = 'allies.view';
+    case AlliesCreate = 'allies.create';
+    case AlliesUpdate = 'allies.update';
+    case AlliesLink = 'allies.link';
+    case SuppliersView = 'suppliers.view';
+    case SuppliersCreate = 'suppliers.create';
+    case SuppliersUpdate = 'suppliers.update';
+    case SuppliersLink = 'suppliers.link';
 
     public function label(): string
     {
         return match ($this) {
-            self::UsersView, self::RolesView => 'Ver',
-            self::UsersCreate => 'Crear',
-            self::UsersUpdate => 'Editar',
+            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView => 'Ver',
+            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate => 'Crear',
+            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate => 'Editar',
             self::UsersDelete => 'Eliminar',
             self::RolesManage, self::CompanyManage => 'Administrar',
+            self::AlliesLink, self::SuppliersLink => 'Convertir en mixto / revertir',
         };
     }
 
@@ -37,6 +46,8 @@ enum Permission: string
             self::UsersView, self::UsersCreate, self::UsersUpdate, self::UsersDelete => 'Usuarios',
             self::RolesView, self::RolesManage => 'Roles y permisos',
             self::CompanyManage => 'Configuración de la empresa',
+            self::AlliesView, self::AlliesCreate, self::AlliesUpdate, self::AlliesLink => 'Aliados',
+            self::SuppliersView, self::SuppliersCreate, self::SuppliersUpdate, self::SuppliersLink => 'Proveedores',
         };
     }
 

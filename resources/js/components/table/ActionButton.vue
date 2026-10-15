@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Eye, Pencil, Trash2 } from 'lucide-vue-next';
+import { ArrowLeftRight, Eye, Pencil, Trash2, Unlink } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 /**
- * Botón de acción de una fila, con un color por tipo de acción: ver (gris), editar (azul) y
- * eliminar (rojo). En la tabla de escritorio muestra solo el ícono; en las tarjetas de móvil
+ * Botón de acción de una fila, con un color por tipo de acción: ver (gris), editar (azul),
+ * eliminar (rojo), convertir en mixto (violeta) y revertir (ámbar). En la tabla de escritorio muestra solo el ícono; en las tarjetas de móvil
  * (`labeled`) también el texto.
  */
 const props = defineProps<{
-    action: 'view' | 'edit' | 'delete';
+    action: 'view' | 'edit' | 'delete' | 'convert' | 'revert';
     label: string;
     href?: string;
     labeled?: boolean;
@@ -21,10 +21,12 @@ const tones = {
     view: 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
     edit: 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900',
     delete: 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900',
+    convert: 'bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-violet-950 dark:text-violet-300 dark:hover:bg-violet-900',
+    revert: 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900',
 };
 
-const texts = { view: 'Ver', edit: 'Editar', delete: 'Eliminar' };
-const icons = { view: Eye, edit: Pencil, delete: Trash2 };
+const texts = { view: 'Ver', edit: 'Editar', delete: 'Eliminar', convert: 'Convertir', revert: 'Revertir' };
+const icons = { view: Eye, edit: Pencil, delete: Trash2, convert: ArrowLeftRight, revert: Unlink };
 
 const classes = computed(() => [
     'inline-flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',

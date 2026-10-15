@@ -4,11 +4,13 @@ use App\Enums\BaseRole;
 use App\Enums\MigrationIssueSeverity;
 use App\Enums\MigrationRunStatus;
 use App\Enums\Permission;
+use App\Models\Ally;
 use App\Models\CentralUser;
 use App\Models\CompanyProfile;
 use App\Models\MigrationRun;
 use App\Models\MigrationSource;
 use App\Models\Role;
+use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -236,6 +238,73 @@ test('quarantines the company configuration when its habilitation data is malfor
 
     expect($run->steps->sole()->quarantined_count)->toBe(1);
     $this->tenant->run(fn () => expect(CompanyProfile::current()->territorial_code)->toBeNull());
+});
+
+test('imports allies and suppliers linking as mixed only the reciprocal pairs', function () {
+    $this->legacy->table('aliados')->insert([
+        ['id' => 1, 'nombre' => ' MURIEL  ROSALES ', 'nit' => '45502488 ', 'telefono' => '3116894076', 'direccion' => null, 'email' => ' Murolle@Hotmail.com', 'proveedor_id' => 36],
+        ['id' => 3, 'nombre' => 'SANTIAGO PAJARO', 'nit' => '1043652341', 'telefono' => null, 'direccion' => null, 'email' => null, 'proveedor_id' => null],
+    ]);
+    $this->legacy->table('proveedores')->insert([
+        ['id' => 36, 'nombre' => 'MURIEL ROSALES', 'nit' => '45502488', 'telefono' => null, 'direccion' => null, 'email' => null, 'aliado_id' => 1],
+        ['id' => 40, 'nombre' => 'HUERFANO', 'nit' => '900', 'telefono' => null, 'direccion' => null, 'email' => null, 'aliado_id' => 3],
+    ]);
+
+    $run = startLegacyRun(['third_parties']);
+
+    expect($run->steps->sole()->only('total_count', 'inserted_count'))->toBe(['total_count' => 4, 'inserted_count' => 4])
+        ->and($run->issues()->where('legacy_id', '40')->sole()->message)
+        ->toBe('El proveedor apunta al aliado #3, pero ese aliado no apunta de vuelta: no se vinculan como mixto.');
+    $this->tenant->run(function () {
+        $ally = Ally::query()->where('legacy_id', '1')->sole();
+
+        expect($ally->only('name', 'nit', 'email'))->toBe(['name' => 'MURIEL ROSALES', 'nit' => '45502488', 'email' => 'murolle@hotmail.com'])
+            ->and(Supplier::query()->where('legacy_id', '36')->sole()->ally_id)->toBe($ally->id)
+            ->and(Supplier::query()->where('legacy_id', '40')->sole()->ally_id)->toBeNull();
+    });
+});
+
+test('imports repeated suppliers and reports them', function () {
+    $this->legacy->table('proveedores')->insert([
+        ['id' => 11, 'nombre' => 'LAURA ROSALES BUSTAMANTE', 'nit' => '10049153520', 'aliado_id' => null],
+        ['id' => 12, 'nombre' => 'LAURA ROSALES BUSTAMANTE', 'nit' => '10049153520', 'aliado_id' => null],
+    ]);
+
+    $run = startLegacyRun(['third_parties']);
+
+    $this->tenant->run(fn () => expect(Supplier::count())->toBe(2));
+    expect($run->issues()->pluck('message')->all())->toContain(
+        'Hay 2 proveedores con el mismo NIT "10049153520" (#11, #12). Se migran todos; conviene depurarlos.',
+        'Hay 2 proveedores con el mismo nombre "laura rosales bustamante" (#11, #12). Se migran todos; conviene depurarlos.',
+    );
+});
+
+test('links each imported user to its ally or supplier whatever module runs first', function (array $runs) {
+    $this->legacy->table('aliados')->insert(['id' => 1, 'nombre' => 'ALIADO UNO', 'email' => 'aliado@kemuel.test']);
+    $this->legacy->table('proveedores')->insert(['id' => 5, 'nombre' => 'PROVEEDOR CINCO', 'email' => 'proveedor@kemuel.test']);
+    legacyUser(['ID' => 1, 'NombreUsuario' => 'aliado1', 'AliadoID' => 1, 'rol_id' => 8]);
+    legacyUser(['ID' => 2, 'NombreUsuario' => 'proveedor5', 'ProveedorID' => 5, 'rol_id' => 8]);
+
+    foreach ($runs as $modules) {
+        startLegacyRun($modules);
+    }
+
+    $this->tenant->run(function () {
+        expect(User::query()->where('username', 'aliado1')->sole()->ally?->name)->toBe('ALIADO UNO')
+            ->and(User::query()->where('username', 'proveedor5')->sole()->supplier?->name)->toBe('PROVEEDOR CINCO');
+    });
+})->with([
+    'same run' => [[['roles', 'third_parties', 'users']]],
+    'users first' => [[['roles', 'users'], ['third_parties']]],
+]);
+
+test('grants the ally and supplier permissions the legacy role could complete', function () {
+    LegacyDatabase::role($this->legacy, 5, 'Coordinador', ['/proveedores/', '/proveedores/create.php', '/proveedores_aliados/index.php', '/proveedores_aliados/update.php']);
+
+    startLegacyRun(['roles']);
+
+    $this->tenant->run(fn () => expect(Role::query()->where('legacy_id', '5')->sole()->permissions->pluck('name')->sort()->values()->all())
+        ->toBe(['allies.view', 'suppliers.create', 'suppliers.link', 'suppliers.view']));
 });
 
 test('refuses a source that belongs to another company', function () {

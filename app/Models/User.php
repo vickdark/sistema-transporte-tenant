@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -20,6 +21,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $email
  * @property string|null $legacy_source tabla legacy de la que se migró (ver App\Actions\Migrations)
  * @property string|null $legacy_id
+ * @property int|null $ally_id aliado al que pertenece la cuenta (portal del aliado)
+ * @property int|null $supplier_id proveedor al que pertenece la cuenta (portal del proveedor)
  */
 class User extends Authenticatable
 {
@@ -80,6 +83,22 @@ class User extends Authenticatable
             'invited_at' => 'datetime',
             'invitation_accepted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Ally, $this>
+     */
+    public function ally(): BelongsTo
+    {
+        return $this->belongsTo(Ally::class);
+    }
+
+    /**
+     * @return BelongsTo<Supplier, $this>
+     */
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
     }
 
     public function hasPendingInvitation(): bool

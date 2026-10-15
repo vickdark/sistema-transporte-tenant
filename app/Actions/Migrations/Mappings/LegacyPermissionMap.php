@@ -30,6 +30,16 @@ class LegacyPermissionMap
         'users.delete' => [['/usuarios/']],
         'roles.view' => [['/roles/index.php'], ['/roles/']],
         'roles.manage' => [['/roles/create.php', '/roles/update.php', '/roles/']],
+        // Aliados (legacy `proveedores_aliados`) y proveedores: convertir/revertir son controladores
+        // de la carpeta que se llaman desde el listado, así que basta el permiso de carpeta.
+        'allies.view' => [['/proveedores_aliados/index.php'], ['/proveedores_aliados/']],
+        'allies.create' => [['/proveedores_aliados/create.php', '/proveedores_aliados/']],
+        'allies.update' => [['/proveedores_aliados/update.php', '/proveedores_aliados/']],
+        'allies.link' => [['/proveedores_aliados/']],
+        'suppliers.view' => [['/proveedores/index.php'], ['/proveedores/']],
+        'suppliers.create' => [['/proveedores/create.php', '/proveedores/']],
+        'suppliers.update' => [['/proveedores/update.php', '/proveedores/']],
+        'suppliers.link' => [['/proveedores/']],
     ];
 
     /**
@@ -39,6 +49,8 @@ class LegacyPermissionMap
      */
     private const WITHOUT_GRANT = [
         '/usuarios/show.php',
+        '/proveedores/show.php',
+        '/proveedores_aliados/show.php',
     ];
 
     /**
@@ -60,8 +72,6 @@ class LegacyPermissionMap
         'mantenimientos' => 'Mantenimientos',
         'novedades' => 'Novedades',
         'ordenServicio' => 'Órdenes de servicio',
-        'proveedores' => 'Proveedores',
-        'proveedores_aliados' => 'Aliados',
         'proveedoresdash' => 'Portal de proveedores',
         'proveedoresdash_aliados' => 'Portal de aliados',
         'reportes_gerenciales' => 'Reportes gerenciales',

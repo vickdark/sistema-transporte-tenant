@@ -5,6 +5,7 @@ namespace App\Enums;
 use App\Actions\Migrations\Importers\CompanyImporter;
 use App\Actions\Migrations\Importers\LegacyImporter;
 use App\Actions\Migrations\Importers\RolesImporter;
+use App\Actions\Migrations\Importers\ThirdPartiesImporter;
 use App\Actions\Migrations\Importers\UsersImporter;
 
 /**
@@ -15,6 +16,7 @@ enum MigrationModule: string
 {
     case Company = 'company';
     case Roles = 'roles';
+    case ThirdParties = 'third_parties';
     case Users = 'users';
 
     public function label(): string
@@ -22,6 +24,7 @@ enum MigrationModule: string
         return match ($this) {
             self::Company => 'Configuración de la empresa',
             self::Roles => 'Roles y permisos',
+            self::ThirdParties => 'Aliados y proveedores',
             self::Users => 'Usuarios',
         };
     }
@@ -32,7 +35,7 @@ enum MigrationModule: string
     public function dependsOn(): array
     {
         return match ($this) {
-            self::Company, self::Roles => [],
+            self::Company, self::Roles, self::ThirdParties => [],
             self::Users => [self::Roles],
         };
     }
@@ -45,6 +48,7 @@ enum MigrationModule: string
         return match ($this) {
             self::Company => CompanyImporter::class,
             self::Roles => RolesImporter::class,
+            self::ThirdParties => ThirdPartiesImporter::class,
             self::Users => UsersImporter::class,
         };
     }

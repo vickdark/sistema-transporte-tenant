@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { usePermissions } from '@/composables/usePermissions';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { Building2, LayoutGrid, ShieldCheck, Users } from 'lucide-vue-next';
+import { Building2, Handshake, LayoutGrid, ShieldCheck, Truck, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -13,6 +13,8 @@ const { can } = usePermissions();
 
 const allNavItems: NavItem[] = [
     { title: 'Inicio', href: '/dashboard', icon: LayoutGrid },
+    { title: 'Aliados', href: '/allies', icon: Handshake, permission: 'allies.view' },
+    { title: 'Proveedores', href: '/suppliers', icon: Truck, permission: 'suppliers.view' },
     { title: 'Usuarios', href: '/users', icon: Users, permission: 'users.view' },
     { title: 'Roles y permisos', href: '/roles', icon: ShieldCheck, permission: 'roles.view' },
     { title: 'Configuración de la empresa', href: '/company', icon: Building2, permission: 'company.manage' },

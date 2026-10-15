@@ -69,11 +69,15 @@ class LegacyDatabase
             $table->string('Nombre');
             $table->string('Correo');
         });
-        foreach (['aliados', 'proveedores'] as $name) {
-            $schema->create($name, function (Blueprint $table) {
+        foreach (['aliados' => 'proveedor_id', 'proveedores' => 'aliado_id'] as $name => $twinColumn) {
+            $schema->create($name, function (Blueprint $table) use ($twinColumn) {
                 $table->increments('id');
                 $table->string('nombre');
+                $table->string('nit')->nullable();
+                $table->string('telefono')->nullable();
+                $table->string('direccion')->nullable();
                 $table->string('email')->nullable();
+                $table->integer($twinColumn)->nullable();
             });
         }
         $schema->create('clientes', function (Blueprint $table) {

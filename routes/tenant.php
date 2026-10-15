@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Tenant\AllyController;
 use App\Http\Controllers\Tenant\CompanyProfileController;
 use App\Http\Controllers\Tenant\RoleController;
+use App\Http\Controllers\Tenant\SupplierController;
 use App\Http\Controllers\Tenant\UserController;
 use App\Http\Middleware\EnsureTenantIsActive;
 use App\Http\Middleware\EnsureUserHasRole;
@@ -46,6 +48,16 @@ Route::middleware([
         Route::get('company/files/{type}', [CompanyProfileController::class, 'showFile'])->whereIn('type', ['logo', 'signature'])->name('company.files.show');
         Route::post('company/files/{type}', [CompanyProfileController::class, 'storeFile'])->whereIn('type', ['logo', 'signature'])->name('company.files.store');
         Route::delete('company/files/{type}', [CompanyProfileController::class, 'destroyFile'])->whereIn('type', ['logo', 'signature'])->name('company.files.destroy');
+
+        // Aliados y proveedores: como en el legacy no se eliminan; "convert" los vuelve mixtos y su DELETE lo revierte.
+        Route::get('allies/export/{format}', [AllyController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('allies.export');
+        Route::resource('allies', AllyController::class)->except('destroy');
+        Route::post('allies/{ally}/convert', [AllyController::class, 'convert'])->name('allies.convert');
+        Route::delete('allies/{ally}/convert', [AllyController::class, 'revert'])->name('allies.revert');
+        Route::get('suppliers/export/{format}', [SupplierController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('suppliers.export');
+        Route::resource('suppliers', SupplierController::class)->except('destroy');
+        Route::post('suppliers/{supplier}/convert', [SupplierController::class, 'convert'])->name('suppliers.convert');
+        Route::delete('suppliers/{supplier}/convert', [SupplierController::class, 'revert'])->name('suppliers.revert');
 
         Route::get('roles/export/{format}', [RoleController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('roles.export');
         Route::resource('roles', RoleController::class)->except('show');

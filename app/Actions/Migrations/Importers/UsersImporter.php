@@ -3,7 +3,9 @@
 namespace App\Actions\Migrations\Importers;
 
 use App\Actions\Users\AssignUserRole;
+use App\Models\Ally;
 use App\Models\Role;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Rules\Username;
 use Illuminate\Database\ConnectionInterface;
@@ -41,6 +43,13 @@ class UsersImporter implements LegacyImporter
         'ClienteID' => 'cliente',
     ];
 
+    /**
+     * Aliados y proveedores ya importados: id legacy => id nuevo.
+     *
+     * @var array{allies: array<string, int>, suppliers: array<string, int>}
+     */
+    private array $actorIds = ['allies' => [], 'suppliers' => []];
+
     public function __construct(private AssignUserRole $assignUserRole) {}
 
     public function import(ImportContext $context): void
@@ -54,6 +63,10 @@ class UsersImporter implements LegacyImporter
         $actors = $this->loadActors($context->legacy, $legacyUsers);
         $emails = $this->assignEmails($context, $legacyUsers, $actors);
         $roles = Role::query()->where('legacy_source', RolesImporter::LEGACY_TABLE)->get()->keyBy('legacy_id');
+        $this->actorIds = [
+            'allies' => Ally::query()->where('legacy_source', ThirdPartiesImporter::ALLIES_TABLE)->pluck('id', 'legacy_id')->all(),
+            'suppliers' => Supplier::query()->where('legacy_source', ThirdPartiesImporter::SUPPLIERS_TABLE)->pluck('id', 'legacy_id')->all(),
+        ];
 
         foreach ($legacyUsers as $legacyUser) {
             $context->read();
@@ -148,6 +161,9 @@ class UsersImporter implements LegacyImporter
             'password' => $passwordHash,
             'legacy_source' => self::LEGACY_TABLE,
             'legacy_id' => (string) $legacyUser->id,
+            // Si su aliado o proveedor ya se importó queda enlazado; si no, lo enlaza ese importador.
+            'ally_id' => $link === 'AliadoID' ? ($this->actorIds['allies'][(string) $links[$link]] ?? null) : null,
+            'supplier_id' => $link === 'ProveedorID' ? ($this->actorIds['suppliers'][(string) $links[$link]] ?? null) : null,
         ])->save();
 
         try {

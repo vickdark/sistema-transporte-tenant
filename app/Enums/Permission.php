@@ -15,6 +15,7 @@ enum Permission: string
     case UsersDelete = 'users.delete';
     case RolesView = 'roles.view';
     case RolesManage = 'roles.manage';
+    case CompanyManage = 'company.manage';
 
     public function label(): string
     {
@@ -23,7 +24,7 @@ enum Permission: string
             self::UsersCreate => 'Crear',
             self::UsersUpdate => 'Editar',
             self::UsersDelete => 'Eliminar',
-            self::RolesManage => 'Administrar',
+            self::RolesManage, self::CompanyManage => 'Administrar',
         };
     }
 
@@ -35,6 +36,7 @@ enum Permission: string
         return match ($this) {
             self::UsersView, self::UsersCreate, self::UsersUpdate, self::UsersDelete => 'Usuarios',
             self::RolesView, self::RolesManage => 'Roles y permisos',
+            self::CompanyManage => 'Configuración de la empresa',
         };
     }
 

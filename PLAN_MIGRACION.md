@@ -3,7 +3,7 @@
 > Documento vivo. Se ajusta a medida que avanzamos; cada cambio de decisión se anota en el
 > [registro de decisiones](#registro-de-decisiones).
 >
-> **Estado:** Fase 0 y Fase 1 terminadas, incluido el motor de corridas de migración con los importadores de roles y usuarios. Sigue la Fase 2.
+> **Estado:** Fase 0 y Fase 1 terminadas. Fase 2 en curso: 2.1 (configuración de la empresa) terminada.
 
 ---
 
@@ -88,7 +88,7 @@ Orden por dependencias. Cada módulo incluye: migraciones, modelos, Policies, pa
 
 | # | Módulo | Notas |
 |---|---|---|
-| 2.1 | Configuración de la empresa | Razón social, NIT, logo, datos de habilitación del FUEC |
+| 2.1 ✅ | Configuración de la empresa | Razón social y NIT siguen en el panel central (solo lectura en la empresa). En el schema (`company_profiles`, una fila): contacto para documentos, tipo de servicio, habilitación del FUEC (territorial 3 dígitos, resolución 4, año 2), logo y firma (privados por empresa; la firma solo la ve quien tiene `company.manage`). Importador `company` desde `configuracion_empresa` |
 | 2.2 | Terceros: aliados y proveedores | Entidades del tenant (no tenants). Relación aliado↔proveedor sin triggers |
 | 2.3 | Clientes | Persona/empresa, sucursales; dueño: empresa o aliado |
 | 2.4 | Rutas | |
@@ -338,3 +338,5 @@ balanceador), configurar los proxies de confianza para que Laravel vea el host y
 | 2026-10-15 | Fuente de pruebas: espejo de la BD de producción en el servidor (lo prepara el usuario) |
 | 2026-10-15 | Listados: tabla resuelta en el servidor (búsqueda, filtros, orden, paginación) y exportación a Excel/PDF con los mismos filtros; dependencias `openspout/openspout` y `barryvdh/laravel-dompdf` aprobadas |
 | 2026-10-15 | El vínculo usuario↔actor pasa de la Fase 1 a la Fase 2 (necesita las tablas de las entidades) |
+| 2026-10-15 | 2.1: razón social y NIT son del panel central; el resto de la configuración vive en el schema de la empresa y la edita quien tenga `company.manage` |
+| 2026-10-15 | 2.1: logo y firma del FUEC se suben como imágenes PNG/JPG (máx. 2 MB) a almacenamiento privado por empresa; no se aceptan SVG |

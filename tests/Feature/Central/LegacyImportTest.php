@@ -5,6 +5,7 @@ use App\Enums\MigrationIssueSeverity;
 use App\Enums\MigrationRunStatus;
 use App\Enums\Permission;
 use App\Models\CentralUser;
+use App\Models\CompanyProfile;
 use App\Models\MigrationRun;
 use App\Models\MigrationSource;
 use App\Models\Role;
@@ -214,6 +215,27 @@ test('a dry run reports what it would import without writing in the tenant', fun
         expect(User::query()->whereNotNull('legacy_id')->exists())->toBeFalse()
             ->and(Role::query()->whereNotNull('legacy_id')->exists())->toBeFalse();
     });
+});
+
+test('imports the company configuration and warns when the business name differs', function () {
+    $run = startLegacyRun(['company']);
+
+    expect($run->status)->toBe(MigrationRunStatus::Completed)
+        ->and($run->steps->sole()->inserted_count)->toBe(1)
+        ->and($run->issues()->pluck('message')->all())->toContain(
+            "La razón social del legacy (\"Transportes de prueba SAS\") es distinta a la registrada en el panel central (\"{$this->tenant->name}\"). Los documentos usan la del panel central; corrígela allí si hace falta.",
+        );
+    $this->tenant->run(fn () => expect(CompanyProfile::current()->only('email', 'territorial_code', 'habilitation_resolution', 'habilitation_year', 'legacy_id'))
+        ->toBe(['email' => 'contacto@transportes.test', 'territorial_code' => '213', 'habilitation_resolution' => '0114', 'habilitation_year' => '16', 'legacy_id' => '1']));
+});
+
+test('quarantines the company configuration when its habilitation data is malformed', function () {
+    $this->legacy->table('configuracion_empresa')->update(['codigo_territorial' => '21A']);
+
+    $run = startLegacyRun(['company']);
+
+    expect($run->steps->sole()->quarantined_count)->toBe(1);
+    $this->tenant->run(fn () => expect(CompanyProfile::current()->territorial_code)->toBeNull());
 });
 
 test('refuses a source that belongs to another company', function () {

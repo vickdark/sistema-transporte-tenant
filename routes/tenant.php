@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Tenant\CompanyProfileController;
 use App\Http\Controllers\Tenant\RoleController;
 use App\Http\Controllers\Tenant\UserController;
 use App\Http\Middleware\EnsureTenantIsActive;
@@ -40,6 +41,12 @@ Route::middleware([
 
         Route::get('users/export/{format}', [UserController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('users.export');
         Route::resource('users', UserController::class)->except('show');
+        Route::get('company', [CompanyProfileController::class, 'edit'])->name('company.edit');
+        Route::put('company', [CompanyProfileController::class, 'update'])->name('company.update');
+        Route::get('company/files/{type}', [CompanyProfileController::class, 'showFile'])->whereIn('type', ['logo', 'signature'])->name('company.files.show');
+        Route::post('company/files/{type}', [CompanyProfileController::class, 'storeFile'])->whereIn('type', ['logo', 'signature'])->name('company.files.store');
+        Route::delete('company/files/{type}', [CompanyProfileController::class, 'destroyFile'])->whereIn('type', ['logo', 'signature'])->name('company.files.destroy');
+
         Route::get('roles/export/{format}', [RoleController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('roles.export');
         Route::resource('roles', RoleController::class)->except('show');
     });

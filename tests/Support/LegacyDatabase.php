@@ -31,6 +31,13 @@ class LegacyDatabase
             $table->increments('id');
             $table->string('razon_social');
             $table->string('nit');
+            $table->string('direccion')->default('Calle 1 # 2-3, Cartagena');
+            $table->string('telefono')->default('3001234567');
+            $table->string('correo')->default('contacto@transportes.test');
+            $table->string('tipo_servicio')->default('Transporte especial de pasajeros');
+            $table->string('codigo_territorial')->default('213');
+            $table->string('resolucion_habilitacion')->default('114');
+            $table->string('anio_habilitacion')->default('16');
         });
         $schema->create('roles', function (Blueprint $table) {
             $table->increments('id');

@@ -43,7 +43,11 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user(),
+                'user' => tenancy()->initialized ? $request->user() : $request->user('central'),
+            ],
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'warning' => $request->session()->get('warning'),
             ],
             'tenant' => tenancy()->initialized ? [
                 'id' => tenant()->getTenantKey(),

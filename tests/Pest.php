@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Tests\TestCase;
 
 /*
@@ -14,8 +14,10 @@ use Tests\TestCase;
 |
 */
 
+// Truncation y no RefreshDatabase: el schema de cada empresa se crea por la conexión central y
+// se migra por otra conexión, que no vería nada dentro de la transacción de RefreshDatabase.
 pest()->extend(TestCase::class)
-    ->use(RefreshDatabase::class)
+    ->use(DatabaseTruncation::class)
     ->in('Feature');
 
 // Authentication, settings and dashboard are tenant routes: run them on a tenant domain.

@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnsureTenantIsActive;
+use App\Http\Middleware\InitializeTenancyBySubdomainOfBaseDomain;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
 /*
@@ -12,15 +13,18 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 | Tenant Routes
 |--------------------------------------------------------------------------
 |
-| Rutas de cada empresa de transporte, identificada por su dominio.
+| Rutas de cada empresa de transporte, identificada por su subdominio
+| ({subdominio}.{tenancy.tenant_base_domain}, p. ej. demo.test).
 | Los usuarios pertenecen a un tenant, por eso la autenticación vive aquí.
+| Un tenant suspendido no puede usar ninguna de estas rutas.
 |
 */
 
 Route::middleware([
     'web',
-    InitializeTenancyByDomain::class,
+    InitializeTenancyBySubdomainOfBaseDomain::class,
     PreventAccessFromCentralDomains::class,
+    EnsureTenantIsActive::class,
 ])->group(function () {
     Route::get('/', function () {
         return Inertia::render('Welcome');

@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Models\Domain;
 use App\Models\Tenant;
+use Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper;
-use Stancl\Tenancy\Database\Models\Domain;
 use Stancl\Tenancy\TenantDatabaseManagers\MySQLDatabaseManager;
-use Stancl\Tenancy\TenantDatabaseManagers\PostgreSQLDatabaseManager;
+use Stancl\Tenancy\TenantDatabaseManagers\PostgreSQLSchemaManager;
 use Stancl\Tenancy\TenantDatabaseManagers\SQLiteDatabaseManager;
 use Stancl\Tenancy\UUIDGenerator;
 
@@ -30,6 +31,18 @@ return [
         'localhost',
     ]))),
 
+    // Dominio sobre el que cuelgan los subdominios de los tenants: con "test", el tenant
+    // "demo" responde en demo.test. En producción, p. ej. "sistransporte.com".
+    'tenant_base_domain' => env('TENANT_BASE_DOMAIN', 'test'),
+
+    // Solo desarrollo local con Laravel Herd: al crear o cambiar el subdominio de una empresa se
+    // ejecuta `herd link {subdominio}` para que {subdominio}.test apunte a este proyecto.
+    // En producción va apagado: allí un DNS comodín (*.dominio) cubre todas las empresas.
+    'herd' => [
+        'auto_link' => (bool) env('HERD_AUTO_LINK', false),
+        'binary' => env('HERD_BINARY', 'herd'),
+    ],
+
     /**
      * Tenancy bootstrappers are executed when tenancy is initialized.
      * Their responsibility is making Laravel features tenant-aware.
@@ -37,9 +50,9 @@ return [
      * To configure their behavior, see the config keys below.
      */
     'bootstrappers' => [
-        // Single-database tenancy: todos los tenants comparten la misma BD,
-        // los datos se separan con la columna tenant_id (trait BelongsToTenant).
-        // Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper::class,
+        // Schema por empresa: al inicializar un tenant, la conexión por defecto pasa a "tenant"
+        // (misma BD, search_path = schema de la empresa). La conexión central sigue disponible.
+        DatabaseTenancyBootstrapper::class,
         // Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper::class, // requiere cache tags (no soportado por el driver database)
         FilesystemTenancyBootstrapper::class,
         QueueTenancyBootstrapper::class,
@@ -61,8 +74,10 @@ return [
         /**
          * Tenant database names are created like this:
          * prefix + tenant_id + suffix.
+         * El nombre real del schema lo genera TenancyServiceProvider (tenant_ + id sin guiones)
+         * y queda guardado en el tenant, así no cambia aunque cambie esta configuración.
          */
-        'prefix' => 'tenant',
+        'prefix' => 'tenant_',
         'suffix' => '',
 
         /**
@@ -72,7 +87,8 @@ return [
             'sqlite' => SQLiteDatabaseManager::class,
             'mysql' => MySQLDatabaseManager::class,
             'mariadb' => MySQLDatabaseManager::class,
-            'pgsql' => PostgreSQLDatabaseManager::class,
+            // Un schema por empresa dentro de la misma base PostgreSQL.
+            'pgsql' => PostgreSQLSchemaManager::class,
 
         /**
          * Use this database manager for MySQL to have a DB user created for each tenant database.
@@ -84,7 +100,6 @@ return [
          * Disable the pgsql manager above, and enable the one below if you
          * want to separate tenant DBs by schemas rather than databases.
          */
-            // 'pgsql' => Stancl\Tenancy\TenantDatabaseManagers\PostgreSQLSchemaManager::class, // Separate by schema instead of database
         ],
     ],
 

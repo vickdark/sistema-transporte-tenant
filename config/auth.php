@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\CentralUser;
+use App\Models\User;
+
 return [
 
     /*
@@ -40,6 +43,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Administradores de la plataforma (panel central).
+        'central' => [
+            'driver' => 'session',
+            'provider' => 'central_users',
+        ],
     ],
 
     /*
@@ -62,7 +71,12 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'central_users' => [
+            'driver' => 'eloquent',
+            'model' => CentralUser::class,
         ],
 
         // 'users' => [

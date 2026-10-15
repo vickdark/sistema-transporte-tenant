@@ -7,16 +7,23 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Stancl\Tenancy\Database\Concerns\BelongsToTenant;
 
 /**
- * Usuario de una empresa de transporte (tenant). BelongsToTenant limita las consultas
- * al tenant actual y asigna tenant_id al crear.
+ * Usuario de una empresa de transporte. La tabla vive en el schema de cada empresa, así que
+ * solo se puede consultar con la tenancy inicializada (o dentro de $tenant->run()).
  */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use BelongsToTenant, HasFactory, Notifiable;
+    use HasFactory, Notifiable;
+
+    /**
+     * Formato fijo de fechas: el panel central lee usuarios dentro de $tenant->run() y los usa
+     * después, cuando la conexión del schema ya no existe para preguntarle su formato.
+     *
+     * @var string
+     */
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     /**
      * The attributes that are mass assignable.
@@ -49,6 +56,22 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'invited_at' => 'datetime',
+            'invitation_accepted_at' => 'datetime',
         ];
+    }
+
+    public function hasPendingInvitation(): bool
+    {
+        return $this->invited_at !== null && $this->invitation_accepted_at === null;
+    }
+
+    /**
+     * Huella de la contraseña actual que firma los enlaces de invitación: al definir
+     * la contraseña cambia, y el enlace ya usado deja de ser válido.
+     */
+    public function invitationHash(): string
+    {
+        return hash_hmac('sha256', $this->password, config('app.key'));
     }
 }

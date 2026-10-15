@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Http\Middleware\InitializeTenancyBySubdomainOfBaseDomain;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Stancl\JobPipeline\JobPipeline;
+use Stancl\Tenancy\DatabaseConfig;
 use Stancl\Tenancy\Events;
+use Stancl\Tenancy\Jobs;
 use Stancl\Tenancy\Listeners;
 use Stancl\Tenancy\Middleware;
 
@@ -23,14 +26,29 @@ class TenancyServiceProvider extends ServiceProvider
         return [
             // Tenant events
             Events\CreatingTenant::class => [],
-            // Single-database: no se crea una BD por tenant.
-            Events\TenantCreated::class => [],
+            // Schema por empresa: se crea y se migra en cuanto se crea el tenant (síncrono, para
+            // poder crear enseguida su primer usuario). Por eso el alta NO puede ir dentro de una
+            // transacción: la migración usa otra conexión y no vería el schema sin confirmar.
+            Events\TenantCreated::class => [
+                JobPipeline::make([
+                    Jobs\CreateDatabase::class,
+                    Jobs\MigrateDatabase::class,
+                ])->send(function (Events\TenantCreated $event) {
+                    return $event->tenant;
+                })->shouldBeQueued(false),
+            ],
             Events\SavingTenant::class => [],
             Events\TenantSaved::class => [],
             Events\UpdatingTenant::class => [],
             Events\TenantUpdated::class => [],
             Events\DeletingTenant::class => [],
-            Events\TenantDeleted::class => [],
+            Events\TenantDeleted::class => [
+                JobPipeline::make([
+                    Jobs\DeleteDatabase::class,
+                ])->send(function (Events\TenantDeleted $event) {
+                    return $event->tenant;
+                })->shouldBeQueued(false),
+            ],
 
             // Domain events
             Events\CreatingDomain::class => [],
@@ -86,6 +104,14 @@ class TenancyServiceProvider extends ServiceProvider
         $this->mapRoutes();
 
         $this->makeTenancyMiddlewareHighestPriority();
+
+        // Un subdominio que no corresponde a ninguna empresa responde 404, no un error 500.
+        InitializeTenancyBySubdomainOfBaseDomain::$onFail = fn () => abort(404);
+
+        // Schema de cada empresa: tenant_ + id en minúsculas y sin guiones (identificador
+        // válido en PostgreSQL sin comillas). Se guarda en el tenant al crearlo.
+        DatabaseConfig::generateDatabaseNamesUsing(fn ($tenant): string => config('tenancy.database.prefix')
+            .str_replace('-', '_', strtolower((string) $tenant->getTenantKey())));
     }
 
     protected function bootEvents()
@@ -118,6 +144,7 @@ class TenancyServiceProvider extends ServiceProvider
             Middleware\PreventAccessFromCentralDomains::class,
 
             Middleware\InitializeTenancyByDomain::class,
+            InitializeTenancyBySubdomainOfBaseDomain::class,
             Middleware\InitializeTenancyBySubdomain::class,
             Middleware\InitializeTenancyByDomainOrSubdomain::class,
             Middleware\InitializeTenancyByPath::class,

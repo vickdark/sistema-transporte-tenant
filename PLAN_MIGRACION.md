@@ -3,7 +3,7 @@
 > Documento vivo. Se ajusta a medida que avanzamos; cada cambio de decisión se anota en el
 > [registro de decisiones](#registro-de-decisiones).
 >
-> **Estado:** planificación. Ninguna fase ha iniciado.
+> **Estado:** Fase 0 terminada (falta solo la siembra de roles, que depende de la Fase 1). Sigue la Fase 1.
 
 ---
 
@@ -12,7 +12,7 @@
 - **Sistema legacy:** `sisTransporte/` (PHP sin framework + MySQL 8, una sola empresa: Transportes Kemuel S.A.S.).
   Es solo referencia: **no se modifica nada dentro de esa carpeta.**
 - **Sistema nuevo:** este proyecto. Laravel 12, Inertia v3 + Vue 3 + TypeScript, PostgreSQL,
-  multi-tenant **single-database** (`stancl/tenancy`, columna `tenant_id`).
+  multi-tenant con **un schema de PostgreSQL por empresa** (`stancl/tenancy`, `PostgreSQLSchemaManager`).
 - **Objetivo:** reconstruir la lógica de negocio con un esquema normalizado y, en paralelo,
   construir un sistema de migración de datos operable desde el panel del administrador central.
 
@@ -22,8 +22,11 @@
    el módulo correspondiente exista, tenga tests y su importador esté validado.
 2. **La migración se diseña desde el día uno.** Cada módulo que se construye entrega también
    su importador (ver [§5](#5-sistema-de-migración-de-datos)).
-3. **Aislamiento por tenant en la base de datos.** Toda tabla de negocio tiene `tenant_id NOT NULL`
-   y FK compuestas `(tenant_id, id)`: un registro no puede apuntar a datos de otra empresa.
+3. **Aislamiento por tenant en la base de datos.** Cada empresa tiene su propio schema
+   (`tenant_<subdominio>`); sus tablas de negocio no llevan `tenant_id` y una FK no puede cruzar a otra empresa.
+   Las migraciones de empresa van en `database/migrations/tenant` y se aplican con `php artisan tenants:migrate`.
+   Las tablas del panel (empresas, subdominios, administradores, migraciones, sesiones, caché, colas)
+   viven en el schema central (`public`); sus modelos usan `CentralConnection`.
 4. **Autorización por permisos, nunca por rol.** `can()`, Policies y middleware `permission:`.
    Ningún `if rol == X` en el código.
 5. **Idioma:** código, tablas y columnas en inglés; interfaz en español.
@@ -34,13 +37,20 @@
 
 | | Panel central (landlord) | Aplicación del tenant |
 |---|---|---|
-| Dominio | `sistema-transporte-tenant.test` (dominios centrales) | `{empresa}.sistema-transporte-tenant.test` |
-| Usuarios | Administradores de la plataforma (tabla y guard propios, sin `tenant_id`) | Usuarios de cada empresa (`users` con `tenant_id`) |
+| Dominio | `sistema-transporte-tenant.test` (dominios centrales) | `{subdominio}.{TENANT_BASE_DOMAIN}`: local `demo.test`; en BD solo se guarda `demo` |
+| Datos | Schema central `public` | Schema propio `tenant_<subdominio>` (se crea y migra al crear la empresa; se borra si se elimina) |
+| Usuarios | Administradores de la plataforma (`central_users`) | Usuarios de cada empresa (`users` en el schema de la empresa) |
 | Funciones | Crear/gestionar inquilinos, dominios, planes; **ejecutar migraciones**; monitoreo | Operación del negocio: órdenes, FUEC, flota, conductores… |
-| Rutas | `routes/web.php` (+ `routes/central.php`) | `routes/tenant.php` |
+| Rutas | `routes/web.php` (solo en el dominio central principal, el de `APP_URL`) | `routes/tenant.php` |
+| Auth | Guard `central` (tabla `central_users`); el primero se crea con `php artisan central:create-user` | Guard `web` (tabla `users`) |
 
-> Hoy el login y el registro solo existen en el tenant. El panel central (con su propio login)
-> se construye en la Fase 0.
+> **Desarrollo local (Herd en Windows):** con `HERD_AUTO_LINK=true` en `.env`, al crear una empresa o
+> cambiar su subdominio el panel ejecuta `herd link`/`herd unlink` (`App\Actions\Tenants\RegisterLocalTenantHost`).
+> Si falla, muestra una advertencia con el comando a correr a mano. El subdominio no puede coincidir
+> con otro sitio de Herd (p. ej. `transporteskemuel` ya es otro proyecto).
+>
+> **Tests:** corren contra PostgreSQL (`sistransporte_test`, ver `phpunit.xml`) con `DatabaseTruncation`;
+> `tests/TestCase.php` borra los schemas `tenant_*` al terminar cada test.
 
 ---
 
@@ -48,21 +58,24 @@
 
 Leyenda: ⬜ pendiente · 🟨 en curso · ✅ terminado
 
-### Fase 0 — Panel central y gestión de inquilinos ⬜
-- ⬜ Modelo y guard de **administradores centrales** (tabla `central_users`, login propio en el dominio central).
-- ⬜ CRUD de **inquilinos**: nombre, NIT, estado (activo/suspendido), datos de la empresa.
-- ⬜ Gestión de **dominios** por inquilino (subdominio principal y dominios adicionales).
-- ⬜ **Alta de inquilino**: al crearlo se siembran sus roles base y se crea su primer usuario Administrador (invitación por correo).
-- ⬜ Suspender / reactivar inquilino (bloquea el acceso sin borrar datos).
-- ⬜ Esqueleto del **módulo de migraciones** en el panel (ver §5): pantallas y tablas de control, aún sin importadores.
+### Fase 0 — Panel central y gestión de inquilinos ✅
+- ✅ Modelo y guard de **administradores centrales** (tabla `central_users`, guard `central`, login propio en el dominio central, comando `central:create-user`).
+- ✅ CRUD de **inquilinos**: nombre, NIT (único), estado, correo, teléfono, dirección, ciudad. Son columnas reales de `tenants`, no el JSON `data`.
+- ✅ **Eliminar inquilino** (`App\Actions\Tenants\DeleteTenant`): borra la empresa, su subdominio, sus corridas de migración, su schema completo y, en local, su sitio de Herd. Se confirma escribiendo el subdominio.
+- ✅ **Usuario inicial**: al crear la empresa se elige entre enviar invitación por correo o definir la contraseña en el panel (cuenta activa de una vez). Desde la ficha se editan nombre y correo (único dentro del schema), se cambia la contraseña o se envía una invitación nueva (p. ej. tras cambiar el correo). `tenants.initial_user_id` guarda cuál es; `users.invited_at` / `invitation_accepted_at` registran la invitación.
+- ✅ **Subdominio** por inquilino (uno solo, editable): se guarda solo `demo` en `domains.domain` y se identifica con `InitializeTenancyBySubdomainOfBaseDomain` sobre `tenancy.tenant_base_domain`. Sin dominios adicionales.
+- ✅ **Schema por empresa**: al crear el tenant se crea `tenant_<subdominio>` y se migra (síncrono); al eliminarlo se borra; si cambia el subdominio, el schema se renombra (`ALTER SCHEMA`, instantáneo y transaccional). El subdominio admite hasta 56 caracteres para que el nombre del schema quepa en los 63 de PostgreSQL. El alta no va en una transacción (la migración usa otra conexión); si falla a mitad, se elimina el tenant.
+- 🟨 **Alta de inquilino** (`App\Actions\Tenants\CreateTenant`): crea tenant + subdominio + primer usuario y le envía una **invitación** (enlace firmado de 7 días al dominio del tenant, de un solo uso). *Pendiente Fase 1:* sembrar los roles base y asignar el rol Administrador (marcado en el código).
+- ✅ Suspender / reactivar inquilino: middleware `EnsureTenantIsActive` responde 403 con la página "Acceso suspendido" en todas las rutas del tenant; no se borra nada.
+- ✅ Esqueleto del **módulo de migraciones**: tablas `migration_sources` (credenciales cifradas, nunca se envían al frontend), `migration_runs`, `migration_run_steps`, `migration_issues`; pantallas de fuentes (registrar/eliminar), listado de corridas y detalle de corrida. Aún sin importadores ni ejecución.
 
 ### Fase 1 — Identidad, roles y permisos (por tenant) ⬜
-- ⬜ Instalar `spatie/laravel-permission` en modo *teams* (team = `tenant_id`, tipo string/UUID).
+- ⬜ Instalar `spatie/laravel-permission` **sin modo teams**: sus tablas van en las migraciones de empresa (`database/migrations/tenant`), así cada schema tiene sus propios roles y permisos.
 - ⬜ **Catálogo de permisos** en un Enum (`recurso.accion`: `users.view`, `roles.manage`, `service-orders.create`…), sincronizado por seeder.
 - ⬜ **Roles base** sembrados por tenant: Administrador (todos los permisos), Administrativo, Coordinador, Asistente de coordinación, Conductor, Cliente, Proveedor, Aliado. Editables por cada empresa.
 - ⬜ **Un rol por usuario** garantizado en 3 niveles: índice único en `model_has_roles`, servicio único de asignación (`syncRoles([$rol])`) y tests. Diseñado para permitir multi-rol más adelante quitando el índice.
 - ⬜ **Usuario vinculado a un actor**: `employee_id` | `client_id` | `supplier_id` | `ally_id` (exactamente uno, con CHECK en BD). *Las columnas y FK se completan cuando existan esas tablas (Fase 2).*
-- ⬜ **Login opción A**: un campo "usuario o correo". `users.username` obligatorio y único por tenant; `users.email` opcional y único por tenant. Ajustar login, perfil, recuperación de contraseña.
+- ⬜ **Login opción A**: un campo "usuario o correo". `users.username` obligatorio y único (dentro del schema de la empresa); `users.email` opcional y único. Ajustar login, perfil, recuperación de contraseña.
 - ⬜ Pantallas: gestión de usuarios, gestión de roles y su matriz de permisos, menú filtrado por permisos, página "sin acceso asignado".
 - ⬜ Importador: **usuarios + roles** (§5.4).
 
@@ -132,7 +145,9 @@ debe servir para cualquier empresa futura que llegue con su propia base legacy.
 - **Importadores por módulo:** una clase por entidad con un contrato común
   (`dependsOn()`, `count()`, `extract()` por lotes con `lazyById`, `transform()`, `load()` por lotes con upsert).
 - **Idempotencia y trazabilidad:** toda tabla migrada guarda `legacy_source` + `legacy_id`, con índice
-  único `(tenant_id, legacy_source, legacy_id)`. Repetir una corrida actualiza, no duplica.
+  único `(legacy_source, legacy_id)` dentro del schema de la empresa. Repetir una corrida actualiza, no duplica.
+- **Escritura en el schema destino:** cada paso corre dentro de `$tenant->run()`; las tablas de control
+  (`migration_*`) se escriben siempre por la conexión central.
 - **Fallar cerrado:** un valor sin mapeo (rol, estado, permiso, catálogo) envía el registro a
   cuarentena; nunca se asigna un valor "por defecto" que otorgue acceso o cambie el significado.
 - **Tablas de mapeo versionadas** en el repo (roles legacy → roles nuevos, URLs legacy → permisos,
@@ -168,7 +183,7 @@ debe servir para cualquier empresa futura que llegue con su propia base legacy.
   valores fuera de catálogo.
 - **B. Durante:** contadores por paso; detener ante mapeos faltantes.
 - **C. Conciliación:** conteos legacy = migrados + cuarentena + omitidos; sumas de control
-  (tarifas, combustible, facturación) por mes; 100 % de registros con el `tenant_id` correcto;
+  (tarifas, combustible, facturación) por mes; nada escrito fuera del schema de la empresa destino;
   muestreo de registros; **equivalencia de permisos por usuario (bloqueante si alguien gana acceso)**.
 - **D. Tests automatizados** de cada importador con datos de prueba (nunca datos reales en el repo).
 
@@ -196,6 +211,87 @@ debe servir para cualquier empresa futura que llegue con su propia base legacy.
 | 3 | Canal de notificaciones push (gestionado por Laravel) | Abierto |
 | 4 | Fuente legacy en el panel: conexión directa vs. carga de dump | Abierto |
 | 5 | Planes / límites por inquilino (si aplica) | Abierto |
+| 6 | Dominio de producción y si el panel va en el dominio raíz o en `admin.` | Abierto |
+
+---
+
+## 8. Despliegue en producción (Linux)
+
+En producción **no se crea nada por empresa**: ni registro DNS, ni virtual host, ni certificado. Todo
+se configura una sola vez con comodines y cada empresa nueva funciona en cuanto se crea en el panel.
+(Ejemplo con `sistransporte.com`; reemplazar por el dominio real.)
+
+**1. DNS (una vez)**
+
+| Tipo | Nombre | Valor |
+|---|---|---|
+| A | `sistransporte.com` | IP del servidor (panel central) |
+| A | `*.sistransporte.com` | IP del servidor (todas las empresas) |
+
+Si el panel va en `admin.sistransporte.com`, basta el registro comodín; `admin` ya es un subdominio reservado.
+
+**2. `.env`**
+```
+APP_URL=https://sistransporte.com          # host del panel central
+TENANT_BASE_DOMAIN=sistransporte.com       # kemuel → kemuel.sistransporte.com
+HERD_AUTO_LINK=false                       # Herd es solo para desarrollo local
+SESSION_SECURE_COOKIE=true                 # SESSION_DOMAIN vacío: cada host tiene su propia cookie
+DB_CONNECTION=pgsql
+```
+
+**3. PostgreSQL:** el usuario de la app necesita crear schemas en su base (no CREATEDB ni superusuario):
+`GRANT CREATE ON DATABASE sistransporte TO app_user;`
+
+**4. Certificado SSL comodín (Let's Encrypt):** un comodín solo se emite con la validación DNS-01, así que
+se usa el plugin de certbot del proveedor DNS (p. ej. Cloudflare):
+```
+certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/.secrets/cloudflare.ini \
+  -d sistransporte.com -d '*.sistransporte.com'
+```
+La renovación es automática (timer de certbot). Forge y Ploi también lo hacen con su opción de subdominios comodín.
+
+**5. Nginx (un solo server block para panel y empresas)**
+```nginx
+server {
+    listen 80;
+    server_name sistransporte.com *.sistransporte.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name sistransporte.com *.sistransporte.com;
+    root /var/www/sistransporte/current/public;
+    index index.php;
+
+    ssl_certificate     /etc/letsencrypt/live/sistransporte.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sistransporte.com/privkey.pem;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    }
+}
+```
+Laravel decide por el host: el dominio de `APP_URL` es el panel; `{subdominio}.{TENANT_BASE_DOMAIN}` es una
+empresa; cualquier otro subdominio responde 404.
+
+**6. En cada despliegue**
+```
+php artisan migrate --force           # schema central
+php artisan tenants:migrate --force   # todos los schemas de empresa
+php artisan config:cache && php artisan route:cache
+php artisan queue:restart
+```
+Además: `queue:work` bajo Supervisor y el cron de `schedule:run`. Si hay un proxy o CDN delante (Cloudflare,
+balanceador), configurar los proxies de confianza para que Laravel vea el host y el esquema reales.
+
+**7. Respaldos:** `pg_dump` de toda la base, o de una sola empresa con `pg_dump -n tenant_<subdominio>`.
 
 ## Registro de decisiones
 
@@ -212,3 +308,16 @@ debe servir para cualquier empresa futura que llegue con su propia base legacy.
 | 2026-10-14 | Prioridad: panel central + usuarios/roles/permisos antes que órdenes |
 | 2026-10-14 | No se migra ningún dato hasta la Fase 4; el sistema de migración se diseña desde el inicio y se opera desde el panel central |
 | 2026-10-14 | Push notifications gestionadas por Laravel (canal por definir) |
+| 2026-10-14 | Fase 0: el panel central solo se registra en el dominio central principal (evita nombres de ruta duplicados) |
+| 2026-10-14 | Inquilinos solo por subdominio sobre un dominio base configurable (`TENANT_BASE_DOMAIN`, local `test` → `demo.test`); se quitan los dominios adicionales |
+| 2026-10-14 | Fase 0: el primer usuario de un inquilino se invita con un enlace firmado de un solo uso (no con el broker de restablecimiento, cuya tabla no distingue tenant) |
+| 2026-10-14 | Fase 0: los inquilinos no se borran desde el panel; solo se suspenden |
+| 2026-10-14 | **Reemplaza a single-database:** un schema de PostgreSQL por empresa (`tenant_<subdominio>`); sin `tenant_id` en las tablas de negocio; Spatie sin modo teams |
+| 2026-10-14 | Sesiones, caché y colas en el schema central (conexión fijada en config) |
+| 2026-10-14 | Producción: DNS, Nginx y SSL comodín; nada se crea por empresa. En local, `herd link` automático (`HERD_AUTO_LINK`) |
+| 2026-10-14 | Tests contra PostgreSQL real (`sistransporte_test`) con `DatabaseTruncation` |
+| 2026-10-14 | **Reemplaza a "no se borran":** los inquilinos se pueden eliminar desde el panel con todos sus datos (confirmando el subdominio); suspender sigue siendo la opción reversible |
+| 2026-10-14 | Interfaz en español: `APP_LOCALE=es` con traducciones propias en `lang/es` (sin paquetes); los tests fijan `es` en `phpunit.xml` |
+| 2026-10-14 | Schema con nombre legible `tenant_<subdominio>` (se renombra si cambia el subdominio) en vez del UUID |
+| 2026-10-14 | El usuario inicial puede recibir invitación o contraseña definida por el panel, en el alta y en la edición |
+| 2026-10-14 | Todas las confirmaciones de la interfaz con SweetAlert2 (`useConfirm`); dependencia `sweetalert2` aprobada |

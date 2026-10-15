@@ -13,7 +13,8 @@ use Illuminate\Validation\Rule;
 /**
  * Datos de un cliente, con las validaciones del "editar" del legacy aplicadas también al crear:
  * identificación de 6 a 20 dígitos y no repetida en ningún otro cliente, teléfono de 7 a 15
- * dígitos (se le quitan espacios, guiones y el +57). El DV es opcional (1 o 2 dígitos). El tipo
+ * dígitos (se le quitan espacios, guiones y el +57). El DV es opcional (1 o 2 dígitos). El correo
+ * es obligatorio, salvo al editar un cliente migrado que no lo tenía. El tipo
  * de cliente se elige al crear y no se cambia después; una persona no lleva razón social ni una
  * empresa nombres y apellidos.
  *
@@ -37,7 +38,11 @@ class ClientRequest extends FormRequest
             'business_name', 'trade_name', 'city', 'address', 'extension',
         ]))->map(fn ($value) => is_string($value) ? (preg_replace('/\s+/', ' ', trim($value)) ?: null) : $value);
 
-        $this->merge([...$trimmed->all(), 'phone' => $this->normalizedPhone()]);
+        $this->merge([
+            ...$trimmed->all(),
+            'phone' => $this->normalizedPhone(),
+            'email' => is_string($this->email) ? (mb_strtolower(trim($this->email)) ?: null) : $this->email,
+        ]);
     }
 
     /**
@@ -59,6 +64,7 @@ class ClientRequest extends FormRequest
             'address' => ['required', 'string', 'max:200'],
             'phone' => ['required', 'regex:/^\d{7,15}$/'],
             'extension' => ['nullable', 'string', 'max:10'],
+            'email' => [Rule::requiredIf($this->current() === null || $this->current()->requiresEmail()), 'nullable', 'email', 'max:255'],
         ];
     }
 
@@ -96,6 +102,7 @@ class ClientRequest extends FormRequest
             'address' => 'dirección',
             'phone' => 'teléfono',
             'extension' => 'extensión',
+            'email' => 'correo',
         ];
     }
 

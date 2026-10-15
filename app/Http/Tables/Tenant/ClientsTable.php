@@ -38,7 +38,8 @@ class ClientsTable extends DataTable
                 ->orWhereLike('business_name', "%{$search}%")
                 ->orWhereLike('trade_name', "%{$search}%")
                 ->orWhereLike('phone', "%{$search}%")
-                ->orWhereLike('city', "%{$search}%")))
+                ->orWhereLike('city', "%{$search}%")
+                ->orWhereLike('email', "%{$search}%")))
             ->when($type, fn ($query) => $query->where('type', $type));
     }
 
@@ -99,6 +100,7 @@ class ClientsTable extends DataTable
             'Dirección' => fn (Client $client) => $client->address,
             'Teléfono' => fn (Client $client) => $client->phone,
             'Extensión' => fn (Client $client) => $client->extension,
+            'Correo' => fn (Client $client) => $client->email,
         ];
     }
 

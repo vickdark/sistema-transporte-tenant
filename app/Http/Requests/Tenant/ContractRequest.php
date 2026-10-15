@@ -22,7 +22,8 @@ use Illuminate\Validation\Rule;
  * - Un cliente no tiene dos contratos a la vez: las fechas no pueden cruzarse con otro contrato
  *   suyo (el legacy impedía crear otro mientras hubiera uno vigente).
  * - Datos del responsable: obligatorios si el cliente es una empresa. Si es una persona, el
- *   responsable es el mismo cliente y se toman sus datos (como el legacy, que los pre-llenaba).
+ *   responsable es el mismo cliente y se toman sus datos (como el legacy, que los pre-llenaba);
+ *   si el cliente no tiene correo (los migrados), se pide aquí.
  */
 class ContractRequest extends FormRequest
 {
@@ -55,7 +56,7 @@ class ContractRequest extends FormRequest
             'ends_on' => ['required', 'date', 'after_or_equal:starts_on', $this->withinStartYear(), $this->notOverlapping()],
             'responsible_identification' => [Rule::requiredIf($this->isCompanyClient()), 'nullable', 'string', 'max:20'],
             'responsible_name' => [Rule::requiredIf($this->isCompanyClient()), 'nullable', 'string', 'max:150'],
-            'responsible_email' => [Rule::requiredIf($this->isCompanyClient()), 'nullable', 'email', 'max:100'],
+            'responsible_email' => [Rule::requiredIf($this->isCompanyClient() || $this->isPersonWithoutEmail()), 'nullable', 'email', 'max:100'],
             'responsible_phone' => [Rule::requiredIf($this->isCompanyClient()), 'nullable', 'string', 'max:20'],
         ];
     }
@@ -102,7 +103,7 @@ class ContractRequest extends FormRequest
             ...$this->safe()->except(['responsible_identification', 'responsible_name', 'responsible_email', 'responsible_phone']),
             'responsible_identification' => $client->identification,
             'responsible_name' => $client->displayName(),
-            'responsible_email' => null,
+            'responsible_email' => $client->email ?? mb_strtolower((string) $this->validated('responsible_email')),
             'responsible_phone' => $client->phone,
         ];
     }
@@ -115,6 +116,16 @@ class ContractRequest extends FormRequest
     private function isCompanyClient(): bool
     {
         return $this->client()?->type === ClientType::Company;
+    }
+
+    /**
+     * Cliente persona sin correo (p. ej. migrado): el correo del responsable se pide en el contrato.
+     */
+    private function isPersonWithoutEmail(): bool
+    {
+        $client = $this->client();
+
+        return $client?->type === ClientType::Person && $client->email === null;
     }
 
     public function clientId(): int

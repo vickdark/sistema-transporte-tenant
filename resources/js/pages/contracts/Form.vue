@@ -18,6 +18,7 @@ interface ClientOption {
     name: string;
     identification: string;
     phone: string;
+    email: string | null;
     /** Persona: ella misma es la responsable del contrato; empresa: se piden los datos. */
     is_company: boolean;
     current_contract?: { number: string; ends_on: string } | null;
@@ -234,7 +235,16 @@ const cancelUrl = computed(() => (props.client ? clientUrl(props.module, props.c
                             <p class="text-muted-foreground">El cliente es una persona: ella misma es la responsable del contrato.</p>
                             <p class="mt-1 font-medium">
                                 {{ selectedClient.name }} · {{ selectedClient.identification }} · {{ selectedClient.phone }}
+                                <template v-if="selectedClient.email"> · {{ selectedClient.email }}</template>
                             </p>
+                        </div>
+                        <div v-if="!selectedClient.email" class="grid max-w-md gap-2">
+                            <Label for="responsible_email">Correo del cliente</Label>
+                            <Input id="responsible_email" v-model="form.responsible_email" type="email" required maxlength="100" />
+                            <p class="text-xs text-muted-foreground">
+                                El cliente no tiene correo registrado: se guardará en el contrato y en el cliente.
+                            </p>
+                            <InputError :message="form.errors.responsible_email" />
                         </div>
                     </template>
                 </section>

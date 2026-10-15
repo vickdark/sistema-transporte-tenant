@@ -26,6 +26,8 @@ interface ClientData {
     address: string;
     phone: string;
     extension: string | null;
+    email: string | null;
+    requires_email: boolean;
 }
 
 const props = defineProps<{
@@ -57,6 +59,7 @@ const form = useForm({
     address: props.client?.address ?? '',
     phone: props.client?.phone ?? '',
     extension: props.client?.extension ?? '',
+    email: props.client?.email ?? '',
 });
 
 // Como en el legacy: al elegir el tipo se sugiere el tipo de identificación (se puede cambiar).
@@ -68,6 +71,9 @@ watch(
         }
     },
 );
+
+/** Obligatorio, salvo para los clientes migrados que no lo tenían. */
+const emailRequired = computed(() => props.client === null || props.client.requires_email);
 
 const isPerson = computed(() => form.type === 'person');
 const isCompany = computed(() => form.type === 'company');
@@ -186,6 +192,17 @@ const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-
                             <Label for="extension">Extensión</Label>
                             <Input id="extension" v-model="form.extension" maxlength="10" />
                             <InputError :message="form.errors.extension" />
+                        </div>
+                        <div class="grid gap-2 md:col-span-2">
+                            <Label for="email">Correo{{ emailRequired ? ' *' : '' }}</Label>
+                            <Input id="email" v-model="form.email" type="email" :required="emailRequired" />
+                            <p v-if="isPerson" class="text-xs text-muted-foreground">
+                                Es el correo del responsable en los contratos de este cliente.
+                            </p>
+                            <p v-if="!emailRequired" class="text-xs text-muted-foreground">
+                                Cliente migrado sin correo: puedes agregarlo cuando lo tengas.
+                            </p>
+                            <InputError :message="form.errors.email" />
                         </div>
                     </div>
                 </section>

@@ -29,6 +29,7 @@ class ClientFactory extends Factory
             'city' => 'Cartagena',
             'address' => fake()->streetAddress(),
             'phone' => fake()->numerify('3#########'),
+            'email' => fake()->unique()->safeEmail(),
         ];
     }
 

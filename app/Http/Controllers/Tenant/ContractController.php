@@ -122,6 +122,7 @@ class ContractController extends Controller
                 'client_id' => $request->clientId(),
                 'ally_id' => $owner->allyId,
             ])->save();
+            $this->rememberClientEmail($contract);
 
             return $contract;
         });
@@ -143,7 +144,10 @@ class ContractController extends Controller
         $owner = $this->ownerOf($request, $contract);
         Gate::authorize('update', $contract);
 
-        $contract->update($request->contractData());
+        DB::transaction(function () use ($request, $contract): void {
+            $contract->update($request->contractData());
+            $this->rememberClientEmail($contract);
+        });
 
         return to_route("{$owner->routePrefix()}.client", $contract->client_id)
             ->with('success', "Contrato {$contract->formattedNumber()} actualizado exitosamente.");
@@ -293,9 +297,22 @@ class ContractController extends Controller
     }
 
     /**
+     * Cliente persona sin correo: el que se escribió en el contrato queda también en el cliente,
+     * así el próximo contrato ya no lo pide. Nunca reemplaza un correo existente.
+     */
+    private function rememberClientEmail(Contract $contract): void
+    {
+        $client = $contract->client;
+
+        if ($client->type === ClientType::Person && $client->email === null && $contract->responsible_email !== null) {
+            $client->update(['email' => $contract->responsible_email]);
+        }
+    }
+
+    /**
      * Cliente en el formulario: si es una persona, ella misma es la responsable del contrato.
      *
-     * @return array{id: int, name: string, identification: string, phone: string, is_company: bool}
+     * @return array{id: int, name: string, identification: string, phone: string, email: string|null, is_company: bool}
      */
     private function clientOption(Client $client): array
     {
@@ -304,6 +321,7 @@ class ContractController extends Controller
             'name' => $client->displayName(),
             'identification' => $client->identification,
             'phone' => $client->phone,
+            'email' => $client->email,
             'is_company' => $client->type === ClientType::Company,
         ];
     }

@@ -24,6 +24,7 @@ interface ClientDetail {
     address: string;
     phone: string;
     extension: string | null;
+    email: string | null;
     is_active: boolean;
     owner: string | null;
     users_count: number;
@@ -64,6 +65,7 @@ const details = computed(() => [
     { label: 'Ciudad', value: props.client.city },
     { label: 'Dirección', value: props.client.address },
     { label: 'Teléfono', value: props.client.extension ? `${props.client.phone} ext. ${props.client.extension}` : props.client.phone },
+    { label: 'Correo', value: props.client.email },
     { label: 'Cliente de', value: props.client.owner ?? 'La empresa' },
     { label: 'Usuarios con acceso', value: String(props.client.users_count) },
 ]);

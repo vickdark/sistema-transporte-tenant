@@ -125,7 +125,7 @@ class ClientController extends Controller
     private function renderForm(?Client $client): Response
     {
         return Inertia::render('clients/Form', [
-            'client' => $client ? ['id' => $client->id, 'type' => $client->type, ...$this->formData($client)] : null,
+            'client' => $client ? ['id' => $client->id, 'type' => $client->type, 'requires_email' => $client->requiresEmail(), ...$this->formData($client)] : null,
             'types' => $this->options(ClientType::cases()),
             'identificationTypes' => $this->options(IdentificationType::cases()),
             'suggestedIdentificationTypes' => collect(ClientType::cases())
@@ -142,7 +142,7 @@ class ClientController extends Controller
             'identification_type' => $client->identification_type,
             ...$client->only([
                 'identification', 'check_digit', 'branch_code', 'first_names', 'last_names',
-                'business_name', 'trade_name', 'city', 'address', 'phone', 'extension',
+                'business_name', 'trade_name', 'city', 'address', 'phone', 'extension', 'email',
             ]),
         ];
     }

@@ -111,7 +111,7 @@ describe('own contracts', function () {
     });
 
     test('for a person client the responsible is the client itself', function () {
-        $person = Client::factory()->create(['first_names' => 'SANTIAGO', 'last_names' => 'PAJARO', 'identification' => '1043652341', 'phone' => '3135095874']);
+        $person = Client::factory()->create(['first_names' => 'SANTIAGO', 'last_names' => 'PAJARO', 'identification' => '1043652341', 'phone' => '3135095874', 'email' => 'santiago@correo.test']);
 
         $this->post(route('contracts.store'), contractPayload([
             'client_id' => $person->id,
@@ -122,7 +122,20 @@ describe('own contracts', function () {
         ]))->assertSessionHasNoErrors();
 
         expect(Contract::query()->sole()->only('responsible_identification', 'responsible_name', 'responsible_email', 'responsible_phone'))
-            ->toBe(['responsible_identification' => '1043652341', 'responsible_name' => 'SANTIAGO PAJARO', 'responsible_email' => null, 'responsible_phone' => '3135095874']);
+            ->toBe(['responsible_identification' => '1043652341', 'responsible_name' => 'SANTIAGO PAJARO', 'responsible_email' => 'santiago@correo.test', 'responsible_phone' => '3135095874']);
+    });
+
+    test('a person client without email gets it asked in the contract and remembered', function () {
+        $person = Client::factory()->create(['email' => null]);
+
+        $this->post(route('contracts.store'), contractPayload(['client_id' => $person->id, 'responsible_email' => '']))
+            ->assertSessionHasErrors('responsible_email');
+
+        $this->post(route('contracts.store'), contractPayload(['client_id' => $person->id, 'responsible_email' => 'Nuevo@Correo.test']))
+            ->assertSessionHasNoErrors();
+
+        expect(Contract::query()->sole()->responsible_email)->toBe('nuevo@correo.test')
+            ->and($person->refresh()->email)->toBe('nuevo@correo.test');
     });
 
     test('current and upcoming contracts can be edited; expired ones are read only', function () {

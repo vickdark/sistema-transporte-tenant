@@ -353,3 +353,4 @@ balanceador), configurar los proxies de confianza para que Laravel vea el host y
 | 2026-10-15 | 2.5: un contrato no puede cruzar fechas con otro del mismo cliente (reemplaza "no crear si hay uno vigente", que impedía registrar la renovación por adelantado) |
 | 2026-10-15 | 2.5: número de contrato del FUEC consecutivo por clase, continuando desde el último id legacy |
 | 2026-10-15 | 2.8: el contrato creado desde la orden aplica las mismas reglas que la pantalla de contratos |
+| 2026-10-15 | 2.3/2.5: el cliente tiene correo, obligatorio salvo en los migrados (el legacy no lo tenía). En contratos de un cliente persona el responsable es el mismo cliente; si no tiene correo se pide en el contrato y se guarda también en el cliente. Solo los clientes empresa piden datos del responsable |

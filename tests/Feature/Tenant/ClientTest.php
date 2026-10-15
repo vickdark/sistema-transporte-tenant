@@ -39,6 +39,7 @@ function personPayload(array $overrides = []): array
         'city' => 'Cartagena',
         'address' => 'Vista Hermosa Mz R Lt 8',
         'phone' => '+57 313 509 5874',
+        'email' => 'Santiago@Correo.test',
         ...$overrides,
     ];
 }
@@ -137,6 +138,19 @@ describe('create and update', function () {
             ->assertSessionHasNoErrors();
 
         expect($repeated->refresh()->city)->toBe('Turbaco');
+    });
+
+    test('the email is required, but a migrated client without email can still be edited', function () {
+        $this->post(route('clients.store'), personPayload(['email' => '']))->assertSessionHasErrors('email');
+        $this->post(route('clients.store'), personPayload())->assertSessionHasNoErrors();
+        expect(Client::query()->sole()->email)->toBe('santiago@correo.test');
+
+        $migrated = Client::factory()->create(['email' => null, 'identification' => '830085844']);
+        $migrated->forceFill(['legacy_source' => 'clientes', 'legacy_id' => '1'])->save();
+        $created = Client::query()->where('identification', '1043652341')->sole();
+
+        $this->put(route('clients.update', $migrated), personPayload(['identification' => '830085844', 'email' => '']))->assertSessionHasNoErrors();
+        $this->put(route('clients.update', $created), personPayload(['email' => '']))->assertSessionHasErrors('email');
     });
 
     test('the client type does not change when editing', function () {

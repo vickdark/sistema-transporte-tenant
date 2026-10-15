@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $address
  * @property string $phone
  * @property string|null $extension
+ * @property string|null $email obligatorio en los clientes creados en el sistema; los migrados pueden no tenerlo
  * @property bool $is_active
  * @property int|null $ally_id dueño del cliente; null = la empresa
  * @property string|null $legacy_source tabla legacy de la que se migró (ver App\Actions\Migrations)
@@ -58,6 +59,7 @@ class Client extends Model
         'address',
         'phone',
         'extension',
+        'email',
     ];
 
     /**
@@ -107,6 +109,14 @@ class Client extends Model
         $user->ally_id !== null
             ? $query->where('ally_id', $user->ally_id)
             : $query->whereNull('ally_id');
+    }
+
+    /**
+     * El correo es obligatorio salvo para los clientes migrados del legacy, que no lo tenían.
+     */
+    public function requiresEmail(): bool
+    {
+        return $this->legacy_id === null;
     }
 
     public function isVisibleTo(User $user): bool

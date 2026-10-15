@@ -111,6 +111,7 @@ class ContractsImporter implements LegacyImporter
                 ...$data,
                 'responsible_identification' => $client->identification,
                 'responsible_name' => $client->displayName(),
+                'responsible_email' => $client->email,
                 'responsible_phone' => $client->phone,
             ];
         }

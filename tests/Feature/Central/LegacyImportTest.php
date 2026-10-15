@@ -2,6 +2,8 @@
 
 use App\Enums\BaseRole;
 use App\Enums\ClientType;
+use App\Enums\ContractKind;
+use App\Enums\ContractPurpose;
 use App\Enums\MigrationIssueSeverity;
 use App\Enums\MigrationRunStatus;
 use App\Enums\Permission;
@@ -11,6 +13,7 @@ use App\Models\Ally;
 use App\Models\CentralUser;
 use App\Models\Client;
 use App\Models\CompanyProfile;
+use App\Models\Contract;
 use App\Models\LegacyAlias;
 use App\Models\MigrationRun;
 use App\Models\MigrationSource;
@@ -19,6 +22,7 @@ use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\TransportRoute;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\Support\LegacyDatabase;
 
@@ -401,6 +405,46 @@ test('loads repeated routes only once and points the duplicates to it', function
         expect($route->only('legacy_id', 'description', 'status'))->toBe(['legacy_id' => '4', 'description' => 'Ruta fija', 'status' => RouteStatus::Active])
             ->and(LegacyAlias::resolve(TransportRoute::class, 'rutas', 9))->toBe($route->id)
             ->and(LegacyAlias::resolve(TransportRoute::class, 'rutas', 4))->toBe($route->id);
+    });
+});
+
+test('imports own and ally contracts keeping their numbers', function () {
+    $this->legacy->table('aliados')->insert(['id' => 55, 'nombre' => 'ALIADO 55']);
+    $this->legacy->table('clientes')->insert([
+        ['ID' => 1, 'Identificacion' => '830085844', 'aliadoid' => null],
+    ]);
+    $this->legacy->table('clientes')->insert([
+        ['ID' => 2, 'Tipo' => 'Empresa', 'TipoIdentificacion' => 'NIT', 'Identificacion' => '901776568', 'RazonSocial' => 'LECASTELL SAS', 'aliadoid' => 55],
+    ]);
+    $this->legacy->table('contratos_administracion')->insert([
+        ['id' => 404, 'cliente_id' => 1, 'objeto_contrato' => 'CONTRATO PARA TRANSPORTE DE TURISTAS', 'nit' => '73146290', 'razon_social' => 'Alain', 'correo_empresa' => 'a@b.co', 'telefono_empresa' => '300'],
+        ['id' => 405, 'cliente_id' => 1, 'objeto_contrato' => 'CONTRATO PARA VIAJES ESPACIALES', 'nit' => null, 'razon_social' => null, 'correo_empresa' => null, 'telefono_empresa' => null],
+        ['id' => 406, 'cliente_id' => 1, 'objeto_contrato' => 'CONTRATO PARA TRANSPORTE DE TURISTAS', 'nit' => null, 'razon_social' => null, 'correo_empresa' => null, 'telefono_empresa' => null],
+    ]);
+    $this->legacy->table('contratos_aliados')->insert([
+        ['id' => 2539, 'cliente_id' => 2, 'objeto_contrato' => 'CONTRATO PARA GRUPO ESPECIFICO DE USUARIOS', 'nit' => null, 'razon_social' => null, 'correo_empresa' => null, 'telefono_empresa' => null],
+        ['id' => 2540, 'cliente_id' => 1, 'objeto_contrato' => 'CONTRATO PARA GRUPO ESPECIFICO DE USUARIOS', 'nit' => null, 'razon_social' => null, 'correo_empresa' => null, 'telefono_empresa' => null],
+    ]);
+
+    $run = startLegacyRun(['third_parties', 'clients', 'contracts']);
+
+    expect($run->steps()->where('module', 'contracts')->sole()->only('inserted_count', 'quarantined_count'))->toBe(['inserted_count' => 3, 'quarantined_count' => 2])
+        ->and($run->issues()->where('severity', MigrationIssueSeverity::Quarantine)->orderBy('legacy_id')->pluck('message')->all())->toBe([
+            'Es un contrato de aliado, pero su cliente #1 es de la empresa: no se sabe de qué aliado es.',
+            'Objeto de contrato desconocido: "CONTRATO PARA VIAJES ESPACIALES".',
+        ])
+        ->and($run->issues()->pluck('message')->all())->toContain('1 contratos de aliados con datos del responsable incompletos (cliente empresa). Se migran como están; al editarlos se pedirá corregirlo.')
+        ->and($run->issues()->pluck('message')->implode(' '))->not->toContain('contratos propios con datos del responsable');
+    $this->tenant->run(function () {
+        $own = Contract::query()->where('legacy_id', '404')->sole();
+        $personWithoutResponsible = Contract::query()->where('legacy_id', '406')->sole();
+        $ally = Contract::query()->where('kind', ContractKind::Ally)->sole();
+
+        expect($own->only('number', 'purpose', 'responsible_name'))->toBe(['number' => 404, 'purpose' => ContractPurpose::Tourists, 'responsible_name' => 'Alain'])
+            ->and($personWithoutResponsible->only('responsible_identification', 'responsible_phone'))->toBe(['responsible_identification' => '830085844', 'responsible_phone' => '3001234567'])
+            ->and($ally->number)->toBe(2539)
+            ->and($ally->ally->name)->toBe('ALIADO 55')
+            ->and(DB::transaction(fn () => Contract::nextNumber(ContractKind::Own)))->toBe(407);
     });
 });
 

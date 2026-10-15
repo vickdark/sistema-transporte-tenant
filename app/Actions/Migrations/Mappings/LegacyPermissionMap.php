@@ -51,6 +51,13 @@ class LegacyPermissionMap
         'routes.create' => [['/rutas/create.php', '/rutas/']],
         'routes.update' => [['/rutas/update.php', '/rutas/']],
         'routes.deactivate' => [['/rutas/']],
+        // Contratos: crear y editar guardan con controladores de la carpeta.
+        'contracts.view' => [['/contratos/index.php'], ['/contratos/']],
+        'contracts.create' => [['/contratos/create.php', '/contratos/']],
+        'contracts.update' => [['/contratos/update.php', '/contratos/']],
+        'ally_contracts.view' => [['/contratos_aliados/index.php'], ['/contratos_aliados/']],
+        'ally_contracts.create' => [['/contratos_aliados/create.php', '/contratos_aliados/']],
+        'ally_contracts.update' => [['/contratos_aliados/update.php', '/contratos_aliados/']],
     ];
 
     /**
@@ -67,6 +74,12 @@ class LegacyPermissionMap
         '/clientes/inactivos/',
         '/clientes/inactivos/show.php',
         '/rutas/show.php',
+        '/contratos/show.php',
+        '/contratos/js/',
+        '/contratos_aliados/show.php',
+        '/contratos_aliados/js/',
+        '/contratos_aliados/check_aliado_session.php',
+        '/contratos_aliados/select_aliado.php',
     ];
 
     /**
@@ -79,8 +92,6 @@ class LegacyPermissionMap
         'combustible' => 'Combustible',
         'conductor' => 'Operación del conductor',
         'conductores' => 'Empleados y conductores',
-        'contratos' => 'Contratos',
-        'contratos_aliados' => 'Contratos de aliados',
         'empleados' => 'Empleados y conductores',
         'estadisticas' => 'Reportes y estadísticas',
         'gps' => 'GPS',

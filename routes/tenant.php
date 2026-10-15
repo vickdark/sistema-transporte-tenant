@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Tenant\AllyController;
 use App\Http\Controllers\Tenant\ClientController;
 use App\Http\Controllers\Tenant\CompanyProfileController;
+use App\Http\Controllers\Tenant\ContractController;
 use App\Http\Controllers\Tenant\RoleController;
 use App\Http\Controllers\Tenant\RouteController;
 use App\Http\Controllers\Tenant\SupplierController;
@@ -72,6 +73,26 @@ Route::middleware([
         Route::resource('routes', RouteController::class)->except('destroy');
         Route::post('routes/{route}/deactivate', [RouteController::class, 'deactivate'])->name('routes.deactivate');
         Route::post('routes/{route}/activate', [RouteController::class, 'activate'])->name('routes.activate');
+
+        // Contratos propios y de aliados: mismas pantallas, cada módulo con sus rutas y permisos.
+        // No se eliminan. En los de aliados, un usuario de la empresa elige primero el aliado.
+        Route::get('ally-contracts/select-ally', [ContractController::class, 'selectAlly'])->name('ally-contracts.select-ally');
+        Route::post('ally-contracts/select-ally', [ContractController::class, 'storeAlly'])->name('ally-contracts.store-ally');
+        Route::get('ally-contracts/search-allies', [ContractController::class, 'searchAllies'])->name('ally-contracts.search-allies');
+        Route::delete('ally-contracts/select-ally', [ContractController::class, 'forgetAlly'])->name('ally-contracts.forget-ally');
+
+        foreach (['contracts', 'ally-contracts'] as $prefix) {
+            Route::prefix($prefix)->name("{$prefix}.")->controller(ContractController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('export/{format}', 'export')->whereIn('format', ['xlsx', 'pdf'])->name('export');
+                Route::get('create', 'create')->name('create');
+                Route::post('/', 'store')->name('store');
+                Route::get('search-clients', 'searchClients')->name('search-clients');
+                Route::get('client/{client}', 'client')->name('client');
+                Route::get('{contract}/edit', 'edit')->name('edit');
+                Route::put('{contract}', 'update')->name('update');
+            });
+        }
 
         Route::get('roles/export/{format}', [RoleController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('roles.export');
         Route::resource('roles', RoleController::class)->except('show');

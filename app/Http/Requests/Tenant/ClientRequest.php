@@ -23,11 +23,11 @@ use Illuminate\Validation\Rule;
 class ClientRequest extends FormRequest
 {
     /**
-     * La autorización la hace el controlador con ClientPolicy.
+     * Se autoriza antes de validar, así quien no tiene permiso no recibe errores de validación.
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->current() !== null ? $this->user()->can('update', $this->current()) : $this->user()->can('create', Client::class);
     }
 
     protected function prepareForValidation(): void

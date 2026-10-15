@@ -96,3 +96,10 @@ export interface SelectOption {
     value: string;
     label: string;
 }
+
+/** Opción del componente SearchSelect (lo que devuelve su endpoint de búsqueda). */
+export interface SearchSelectOption {
+    value: string | number;
+    label: string;
+    description?: string | null;
+}

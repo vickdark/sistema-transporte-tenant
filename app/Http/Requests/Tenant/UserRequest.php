@@ -11,18 +11,20 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 /**
- * Crear o editar un usuario de la empresa (la autorización la hace UserPolicy en el controlador).
+ * Crear o editar un usuario de la empresa (autorizado con UserPolicy antes de validar).
  * El acceso se resuelve con una invitación por correo o con una contraseña definida aquí;
  * al editar, la contraseña es opcional.
  */
 class UserRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Se autoriza antes de validar, así quien no tiene permiso no recibe errores de validación.
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->route('user');
+
+        return $user instanceof User ? $this->user()->can('update', $user) : $this->user()->can('create', User::class);
     }
 
     /**

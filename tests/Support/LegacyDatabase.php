@@ -109,6 +109,20 @@ class LegacyDatabase
             $table->dateTime('FechaCreacion')->nullable();
         });
 
+        foreach (['contratos_administracion', 'contratos_aliados'] as $name) {
+            $schema->create($name, function (Blueprint $table) {
+                $table->increments('id');
+                $table->integer('cliente_id');
+                $table->string('objeto_contrato')->default('CONTRATO PARA TRANSPORTE EMPRESARIAL');
+                $table->date('fecha_inicio')->default('2026-01-01');
+                $table->date('fecha_fin')->default('2026-12-31');
+                $table->string('nit')->nullable();
+                $table->string('razon_social')->nullable();
+                $table->string('correo_empresa')->nullable();
+                $table->string('telefono_empresa')->nullable();
+            });
+        }
+
         $legacy->table('configuracion_empresa')->insert(['razon_social' => 'Transportes de prueba SAS', 'nit' => $nit]);
 
         app()->instance(LegacyConnection::class, new class extends LegacyConnection

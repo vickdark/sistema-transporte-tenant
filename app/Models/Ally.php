@@ -43,6 +43,16 @@ class Ally extends Model
     }
 
     /**
+     * Contratos de aliados con clientes de este aliado.
+     *
+     * @return HasMany<Contract, $this>
+     */
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(Contract::class);
+    }
+
+    /**
      * @return HasMany<User, $this>
      */
     public function users(): HasMany

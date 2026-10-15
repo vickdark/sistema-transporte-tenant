@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Tenant;
 
+use App\Models\CompanyProfile;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -13,11 +14,11 @@ use Illuminate\Foundation\Http\FormRequest;
 class CompanyProfileRequest extends FormRequest
 {
     /**
-     * La autorización la hace el controlador con CompanyProfilePolicy.
+     * Se autoriza antes de validar, así quien no tiene permiso no recibe errores de validación.
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('update', CompanyProfile::current());
     }
 
     /**

@@ -9,16 +9,18 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Crear o editar un rol con su matriz de permisos (la autorización la hace RolePolicy).
+ * Crear o editar un rol con su matriz de permisos (autorizado con RolePolicy antes de validar).
  */
 class RoleRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Se autoriza antes de validar, así quien no tiene permiso no recibe errores de validación.
      */
     public function authorize(): bool
     {
-        return true;
+        $role = $this->route('role');
+
+        return $role instanceof Role ? $this->user()->can('update', $role) : $this->user()->can('create', Role::class);
     }
 
     /**

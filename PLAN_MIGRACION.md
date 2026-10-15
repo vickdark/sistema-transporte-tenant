@@ -3,7 +3,7 @@
 > Documento vivo. Se ajusta a medida que avanzamos; cada cambio de decisión se anota en el
 > [registro de decisiones](#registro-de-decisiones).
 >
-> **Estado:** Fase 0 y Fase 1 terminadas. Fase 2 en curso: 2.1 (configuración), 2.2 (aliados y proveedores), 2.3 (clientes) y 2.4 (rutas) terminadas.
+> **Estado:** Fase 0 y Fase 1 terminadas. Fase 2 en curso: 2.1 (configuración), 2.2 (aliados y proveedores), 2.3 (clientes), 2.4 (rutas) y 2.5 (contratos) terminadas.
 
 ---
 
@@ -92,10 +92,10 @@ Orden por dependencias. Cada módulo incluye: migraciones, modelos, Policies, pa
 | 2.2 ✅ | Terceros: aliados y proveedores | Igual que el legacy: dos módulos gemelos (nombre obligatorio; nombre y NIT no se repiten dentro del módulo), sin eliminar ni estado. **Convertir** (crea o reutiliza el gemelo con el mismo NIT y queda mixto) y **Revertir** (rompe el vínculo, ambos siguen) en `App\Actions\ThirdParties\LinkAllyAndSupplier`, sin triggers; el vínculo vive solo en `suppliers.ally_id` (único). `users.ally_id` / `users.supplier_id`. Importador `third_parties` (mixtos solo si son recíprocos; repetidos se migran y se reportan) |
 | 2.3 ✅ | Clientes | Igual que el legacy: persona/empresa, código de sucursal, dueño empresa o aliado (`ally_id`): cada usuario ve solo los clientes de su dueño (también inactivos; el legacy los mostraba todos). Validaciones del editar legacy en crear y editar; identificación única en toda la base salvo que no cambie al editar. Inhabilitar/habilitar, sin eliminar. `users.client_id`. Importador `clients` (dueño desconocido → cuarentena; repetidos y formatos inválidos se migran y se reportan) |
 | 2.4 ✅ | Rutas | Igual que el legacy: inicio, fin (el nombre es "Inicio - Fin"), tipo, estado y descripción, todos obligatorios. Se corrige que el estado no se podía cambiar al editar. No se eliminan: inhabilitar las pasa a Inactivas (listado aparte). No se repiten inicio y fin sin distinguir mayúsculas ni espacios. Modelo `TransportRoute` (tabla `routes`). La creación rápida desde la orden (reutiliza la ruta si ya existe) se conecta en 2.8. Importador `routes`: las repetidas se **unifican** (entra la de id más antiguo; las demás quedan en `legacy_aliases` para que el importador de órdenes resuelva su ruta con `LegacyAlias::resolve`) |
-| 2.5 | Contratos propios y contratos de aliados | Entidades separadas |
+| 2.5 ✅ | Contratos propios y contratos de aliados | Módulos separados (rutas y permisos `contracts.*` / `ally_contracts.*`) sobre una tabla `contracts` (`kind` own/ally, `ally_id`). Como el legacy: listado agrupado por cliente, objeto de lista fija, fin hasta el 31/dic del año de inicio, responsable obligatorio, sin eliminar; en los de aliados un usuario de la empresa elige primero el aliado (sesión). Se editan vigentes y futuros (el legacy solo vigentes). "Un contrato a la vez": las fechas no se cruzan con otro del mismo cliente. `number` = número del FUEC, consecutivo por clase (migrados conservan el id legacy). Importador `contracts` |
 | 2.6 | Vehículos | Documentos, fotos, partes (catálogo en tabla), convenios. Igual que 2.7: vehículos de aliados/proveedores mixtos en `LinkAllyAndSupplier`; listado y ficha de terceros muestran sus vehículos y conductores |
 | 2.7 | Empleados y conductores | "Conductor" es una función del empleado, no un rol. Documentos con vencimiento. Al convertir/revertir un aliado o proveedor, sus conductores se asocian/desasocian al otro perfil (acción `LinkAllyAndSupplier`, reemplaza el trigger legacy) |
-| 2.8 | **Órdenes de servicio** | Núcleo. Máquina de estados explícita, pasajeros, apoyo, observaciones, kilometrajes |
+| 2.8 | **Órdenes de servicio** | Núcleo. Máquina de estados explícita, pasajeros, apoyo, observaciones, kilometrajes. Ruta: `LegacyAlias::resolve` en la migración; selector solo de rutas activas y creación rápida reutilizando la existente. Contrato creado desde la orden con las mismas reglas de 2.5 (si el cliente tiene uno vigente, la orden lo usa) |
 | 2.9 | **Órdenes de aliados** | **Dominio separado** de las órdenes propias (mismo esquema legacy, distinto negocio). Flujo de estados por definir |
 | 2.10 | FUEC | Consecutivo por tenant con bloqueo, PDF, QR de verificación, correo |
 | 2.11 | Operación del conductor | Servicios asignados, inicio/fin con km y foto, checklist normalizado (ítems + respuestas), combustible, novedades |
@@ -349,3 +349,7 @@ balanceador), configurar los proxies de confianza para que Laravel vea el host y
 | 2026-10-15 | 2.4: las rutas conservan el estado (Activa, En mantenimiento, Inactiva) y ahora se puede cambiar; no se eliminan, se inactivan como los clientes |
 | 2026-10-15 | 2.4: no se permiten dos rutas con el mismo inicio y fin (sin distinguir mayúsculas ni espacios); en la migración las repetidas se unifican en una sola y sus ids legacy apuntan a ella (`legacy_aliases`) |
 | 2026-10-15 | Orden de la Fase 2: contratos pasa a 2.5 y empleados y conductores a 2.7 |
+| 2026-10-15 | 2.5: contratos de aliados con selección de aliado como el legacy; responsable obligatorio; se editan vigentes y futuros |
+| 2026-10-15 | 2.5: un contrato no puede cruzar fechas con otro del mismo cliente (reemplaza "no crear si hay uno vigente", que impedía registrar la renovación por adelantado) |
+| 2026-10-15 | 2.5: número de contrato del FUEC consecutivo por clase, continuando desde el último id legacy |
+| 2026-10-15 | 2.8: el contrato creado desde la orden aplica las mismas reglas que la pantalla de contratos |

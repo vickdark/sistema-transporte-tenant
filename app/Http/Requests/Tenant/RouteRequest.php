@@ -17,11 +17,13 @@ use Illuminate\Validation\Rule;
 class RouteRequest extends FormRequest
 {
     /**
-     * La autorización la hace el controlador con TransportRoutePolicy.
+     * Se autoriza antes de validar, así quien no tiene permiso no recibe errores de validación.
      */
     public function authorize(): bool
     {
-        return true;
+        $route = $this->route('route');
+
+        return $route instanceof TransportRoute ? $this->user()->can('update', $route) : $this->user()->can('create', TransportRoute::class);
     }
 
     protected function prepareForValidation(): void

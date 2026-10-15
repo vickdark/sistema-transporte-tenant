@@ -32,13 +32,19 @@ enum Permission: string
     case RoutesCreate = 'routes.create';
     case RoutesUpdate = 'routes.update';
     case RoutesDeactivate = 'routes.deactivate';
+    case ContractsView = 'contracts.view';
+    case ContractsCreate = 'contracts.create';
+    case ContractsUpdate = 'contracts.update';
+    case AllyContractsView = 'ally_contracts.view';
+    case AllyContractsCreate = 'ally_contracts.create';
+    case AllyContractsUpdate = 'ally_contracts.update';
 
     public function label(): string
     {
         return match ($this) {
-            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView, self::ClientsView, self::RoutesView => 'Ver',
-            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate, self::ClientsCreate, self::RoutesCreate => 'Crear',
-            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate, self::ClientsUpdate, self::RoutesUpdate => 'Editar',
+            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView, self::ClientsView, self::RoutesView, self::ContractsView, self::AllyContractsView => 'Ver',
+            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate, self::ClientsCreate, self::RoutesCreate, self::ContractsCreate, self::AllyContractsCreate => 'Crear',
+            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate, self::ClientsUpdate, self::RoutesUpdate, self::ContractsUpdate, self::AllyContractsUpdate => 'Editar',
             self::UsersDelete => 'Eliminar',
             self::RolesManage, self::CompanyManage => 'Administrar',
             self::AlliesLink, self::SuppliersLink => 'Convertir en mixto / revertir',
@@ -59,6 +65,8 @@ enum Permission: string
             self::SuppliersView, self::SuppliersCreate, self::SuppliersUpdate, self::SuppliersLink => 'Proveedores',
             self::ClientsView, self::ClientsCreate, self::ClientsUpdate, self::ClientsDeactivate => 'Clientes',
             self::RoutesView, self::RoutesCreate, self::RoutesUpdate, self::RoutesDeactivate => 'Rutas',
+            self::ContractsView, self::ContractsCreate, self::ContractsUpdate => 'Contratos',
+            self::AllyContractsView, self::AllyContractsCreate, self::AllyContractsUpdate => 'Contratos de aliados',
         };
     }
 

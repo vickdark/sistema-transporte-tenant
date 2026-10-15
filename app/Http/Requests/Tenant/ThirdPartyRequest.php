@@ -26,11 +26,11 @@ abstract class ThirdPartyRequest extends FormRequest
     abstract protected function current(): Ally|Supplier|null;
 
     /**
-     * La autorización la hace el controlador con la Policy del módulo.
+     * Se autoriza antes de validar, así quien no tiene permiso no recibe errores de validación.
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->current() !== null ? $this->user()->can('update', $this->current()) : $this->user()->can('create', $this->model());
     }
 
     protected function prepareForValidation(): void

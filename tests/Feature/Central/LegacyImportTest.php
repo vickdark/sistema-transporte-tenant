@@ -9,6 +9,8 @@ use App\Enums\MigrationRunStatus;
 use App\Enums\Permission;
 use App\Enums\RouteStatus;
 use App\Enums\RouteType;
+use App\Enums\VehicleDocumentType;
+use App\Enums\VehicleOwnerType;
 use App\Models\Ally;
 use App\Models\CentralUser;
 use App\Models\Client;
@@ -17,14 +19,20 @@ use App\Models\Contract;
 use App\Models\LegacyAlias;
 use App\Models\MigrationRun;
 use App\Models\MigrationSource;
+use App\Models\Part;
 use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\TransportRoute;
 use App\Models\User;
+use App\Models\Vehicle;
+use App\Models\VehiclePart;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\LegacyDatabase;
+use Tests\Support\LegacyFilesServer;
 
 beforeEach(function () {
     $this->actingAs(CentralUser::factory()->create(), 'central');
@@ -457,4 +465,128 @@ test('refuses a source that belongs to another company', function () {
         ->and($run->steps()->orderBy('id')->pluck('status')->unique()->all())->toBe([MigrationRunStatus::Pending])
         ->and($run->issues()->sole()->message)->toBe("El NIT de la fuente (800123456) no coincide con el de la empresa {$this->tenant->name} (900980138).");
     $this->tenant->run(fn () => expect(Role::query()->whereNotNull('legacy_id')->exists())->toBeFalse());
+});
+
+test('grants the vehicle, part and agreement permissions the legacy role could complete', function () {
+    LegacyDatabase::role($this->legacy, 5, 'Coordinador', ['/vehiculos/', '/vehiculos/update.php', '/vehiculos/inactivos/', '/vehiculos/partes/index.php', '/vehiculos/convenios/create.php', '/vehiculos/show.php']);
+
+    startLegacyRun(['roles']);
+
+    // Sin el listado de convenios no llegaba al botón de eliminar.
+    $this->tenant->run(fn () => expect(Role::query()->where('legacy_id', '5')->sole()->permissions->pluck('name')->sort()->values()->all())
+        ->toBe(['agreements.create', 'vehicle_parts.view', 'vehicles.deactivate', 'vehicles.update', 'vehicles.view']));
+});
+
+/**
+ * Terceros, vehículos, documentos, partes y un convenio de la fuente legacy de prueba.
+ */
+function seedLegacyVehicles(): void
+{
+    $legacy = test()->legacy;
+    $legacy->table('aliados')->insert(['id' => 1, 'nombre' => 'MURIEL ROSALES', 'nit' => '45502488', 'proveedor_id' => 36]);
+    $legacy->table('proveedores')->insert(['id' => 36, 'nombre' => 'MURIEL ROSALES', 'nit' => '45502488', 'aliado_id' => 1]);
+    $legacy->table('vehiculos')->insert([
+        ['ID' => 10, 'Placa' => ' tsx123', 'proveedor_id' => 36, 'aliadoid' => null, 'Estado' => 'Activo', 'cilindraje' => '2700', 'combustible' => 'Diesel', 'Modelo' => ' 2023', 'TipoVehiculo' => 'Camioneta Cerrada'],
+        ['ID' => 11, 'Placa' => 'AAA111', 'proveedor_id' => null, 'aliadoid' => 0, 'Estado' => 'Inactivo', 'cilindraje' => null, 'combustible' => null, 'Modelo' => '2015', 'TipoVehiculo' => 'Bus'],
+        ['ID' => 12, 'Placa' => 'BBB222', 'proveedor_id' => 99, 'aliadoid' => null, 'Estado' => 'Activo', 'cilindraje' => null, 'combustible' => null, 'Modelo' => '2015', 'TipoVehiculo' => 'Bus'],
+        ['ID' => 13, 'Placa' => 'CCC333', 'proveedor_id' => null, 'aliadoid' => null, 'Estado' => 'Activo', 'cilindraje' => null, 'combustible' => null, 'Modelo' => '2015', 'TipoVehiculo' => 'Mini Bus'],
+    ]);
+    $legacy->table('vehiculo_documentos')->insert([
+        ['id' => 100, 'id_vehiculo' => 10, 'tipo_documento' => 'SOAT', 'numero_documento' => '13245768', 'fecha_expedicion' => '2026-01-10', 'fecha_vencimiento' => '2027-01-09', 'archivo_documento' => 'uploads/documentos_vehiculos/SOAT_100.pdf'],
+        ['id' => 101, 'id_vehiculo' => 10, 'tipo_documento' => 'Tarjeta de Propiedad', 'numero_documento' => null, 'fecha_expedicion' => null, 'fecha_vencimiento' => null, 'archivo_documento' => null],
+        ['id' => 102, 'id_vehiculo' => 10, 'tipo_documento' => 'Técnico Mecánica', 'numero_documento' => 'RTM-1', 'fecha_expedicion' => null, 'fecha_vencimiento' => null, 'archivo_documento' => null],
+        ['id' => 103, 'id_vehiculo' => 12, 'tipo_documento' => 'SOAT', 'numero_documento' => '1', 'fecha_expedicion' => null, 'fecha_vencimiento' => '2027-01-01', 'archivo_documento' => null],
+    ]);
+    $legacy->table('partes_vehiculo')->insert([
+        ['ID' => 500, 'VehiculoID' => 10, 'ParteNombre' => 'Aceite', 'KilometrajeRequerido' => 5000],
+        ['ID' => 501, 'VehiculoID' => 11, 'ParteNombre' => 'ACEITE ', 'KilometrajeRequerido' => 0],
+    ]);
+    $legacy->table('convenios')->insert(['id' => 4, 'Nit' => '900 941 023', 'RazonSocial' => 'DUBAI CLASS SAS']);
+    $legacy->table('convenio_vehiculos')->insert(['Convenio_ID' => 4, 'Vehiculo_ID' => 10]);
+}
+
+test('imports the vehicles with their owner, documents, parts and agreement', function () {
+    seedLegacyVehicles();
+
+    $run = startLegacyRun(['third_parties', 'vehicles']);
+
+    expect($run->steps()->where('module', 'vehicles')->sole()->only('total_count', 'inserted_count', 'skipped_count', 'quarantined_count'))
+        ->toBe(['total_count' => 11, 'inserted_count' => 7, 'skipped_count' => 1, 'quarantined_count' => 3])
+        ->and($run->issues()->where('severity', MigrationIssueSeverity::Quarantine)->orderBy('legacy_table')->orderBy('legacy_id')->pluck('message')->all())->toBe([
+            'Su vehículo #12 no está importado.',
+            'Su proveedor #99 no está importado. Migra primero los aliados y proveedores.',
+            'Clase de vehículo desconocida: "Mini Bus".',
+        ])
+        ->and($run->issues()->where('severity', MigrationIssueSeverity::Warning)->pluck('message')->all())->toContain(
+            'La fuente no tiene acceso a los archivos (SFTP): los documentos se migran sin su archivo y las fotos no se migran. Configúralo en la fuente y repite la corrida para completarlos.',
+            '1 registro de vehiculos: de un tercero mixto pero a nombre de uno solo: quedan a nombre de los dos.',
+            '1 registro de vehiculo_documentos: documentos sin fecha de vencimiento (al editarlos se pedirá).',
+            '1 registro de partes_vehiculo: partes con kilometraje entre mantenimientos de 0 o menos (al editarlas se pedirá corregirlo).',
+        );
+
+    $this->tenant->run(function () {
+        $vehicle = Vehicle::query()->where('legacy_id', '10')->sole();
+
+        expect($vehicle->only('plate', 'model_year', 'displacement', 'is_active'))->toBe(['plate' => 'TSX123', 'model_year' => 2023, 'displacement' => 2700, 'is_active' => true])
+            ->and($vehicle->ownerType())->toBe(VehicleOwnerType::Mixed)
+            ->and($vehicle->agreement->only('nit', 'business_name'))->toBe(['nit' => '900941023', 'business_name' => 'DUBAI CLASS SAS'])
+            ->and($vehicle->currentDocuments()->orderBy('legacy_id')->pluck('type')->all())->toBe([VehicleDocumentType::Soat, VehicleDocumentType::TechnicalInspection])
+            ->and($vehicle->currentDocuments()->where('type', VehicleDocumentType::Soat)->sole()->file_path)->toBeNull()
+            ->and(Vehicle::query()->where('legacy_id', '11')->sole()->only('is_active', 'ally_id'))->toBe(['is_active' => false, 'ally_id' => null])
+            ->and(Part::query()->pluck('name')->all())->toBe(['Aceite'])
+            ->and(VehiclePart::query()->orderBy('legacy_id')->pluck('maintenance_interval_km')->all())->toBe([5000, 0]);
+    });
+
+    $again = startLegacyRun(['vehicles']);
+    expect($again->steps->sole()->only('inserted_count', 'updated_count'))->toBe(['inserted_count' => 0, 'updated_count' => 7]);
+});
+
+test('copies the legacy files through the SFTP access, also from a renamed plate folder, and reports the missing ones', function () {
+    $server = LegacyFilesServer::fake();
+    $root = "{$server}/var/www/legacy";
+    File::ensureDirectoryExists("{$root}/uploads/documentos_vehiculos");
+    File::ensureDirectoryExists("{$root}/uploads/vehiculos/TSX123");
+    File::put("{$root}/uploads/documentos_vehiculos/SOAT_100.pdf", '%PDF soat');
+    File::put("{$root}/uploads/vehiculos/TSX123/frente.jpg", 'jpg frente');
+    File::put("{$root}/uploads/vehiculos/TSX123/lado.jpg", 'jpg lado');
+    $this->source->update(['files_connection' => LegacyFilesServer::connection()]);
+    seedLegacyVehicles();
+    $this->legacy->table('vehiculo_fotos')->insert([
+        ['id' => 1, 'id_vehiculo' => 10, 'ruta_foto' => 'uploads/vehiculos/TSX123/frente.jpg'],
+        ['id' => 2, 'id_vehiculo' => 10, 'ruta_foto' => 'uploads/vehiculos/VIEJA1/lado.jpg'],
+        ['id' => 3, 'id_vehiculo' => 10, 'ruta_foto' => 'uploads/vehiculos/TSX123/perdida.jpg'],
+        ['id' => 4, 'id_vehiculo' => 10, 'ruta_foto' => '../../etc/passwd'],
+    ]);
+
+    try {
+        startLegacyRun(['third_parties', 'vehicles'], 'dry_run');
+        $this->tenant->run(fn () => expect(Storage::disk(Vehicle::FILES_DISK)->allFiles())->toBe([]));
+
+        $run = startLegacyRun(['third_parties', 'vehicles']);
+
+        expect($run->issues()->pluck('message')->all())->toContain('2 registros de vehiculo_fotos: archivos que no están en la carpeta del legacy.');
+        $this->tenant->run(function () {
+            $vehicle = Vehicle::query()->where('legacy_id', '10')->sole();
+            $soat = $vehicle->currentDocuments()->where('type', VehicleDocumentType::Soat)->sole();
+
+            expect(Storage::disk(Vehicle::FILES_DISK)->get($soat->file_path))->toBe('%PDF soat')
+                ->and($vehicle->photos()->orderBy('legacy_id')->pluck('legacy_id')->all())->toBe(['1', '2'])
+                ->and(Storage::disk(Vehicle::FILES_DISK)->get($vehicle->photos()->where('legacy_id', '2')->sole()->path))->toBe('jpg lado');
+        });
+    } finally {
+        File::deleteDirectory($server);
+        File::deleteDirectory(storage_path("tenant{$this->tenant->id}"));
+    }
+});
+
+test('the vehicles step fails when the SFTP access of the source cannot connect', function () {
+    File::deleteDirectory(LegacyFilesServer::fake());
+    $this->source->update(['files_connection' => [...LegacyFilesServer::connection(), 'host' => LegacyFilesServer::UNREACHABLE_HOST]]);
+    seedLegacyVehicles();
+
+    $run = startLegacyRun(['third_parties', 'vehicles']);
+
+    expect($run->status)->toBe(MigrationRunStatus::Failed)
+        ->and($run->steps()->where('module', 'vehicles')->sole()->error)->toStartWith('No se pudo conectar por SFTP a sin-acceso.test: Cannot connect to 127.0.0.1:1.');
+    $this->tenant->run(fn () => expect(Vehicle::query()->exists())->toBeFalse());
 });

@@ -44,6 +44,16 @@ class Supplier extends Model
     }
 
     /**
+     * Vehículos a su nombre (si es mixto, los mismos que su gemelo).
+     *
+     * @return HasMany<Vehicle, $this>
+     */
+    public function vehicles(): HasMany
+    {
+        return $this->hasMany(Vehicle::class);
+    }
+
+    /**
      * @return HasMany<User, $this>
      */
     public function users(): HasMany

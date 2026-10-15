@@ -30,6 +30,9 @@ class MigrationsController extends Controller
                     'type_label' => $source->type->label(),
                     'host' => $source->credentials['host'] ?? null,
                     'database' => $source->credentials['database'] ?? null,
+                    'files' => $source->files_connection
+                        ? "{$source->files_connection['username']}@{$source->files_connection['host']}:{$source->files_connection['root']}"
+                        : null,
                     'runs_count' => $source->runs_count,
                     'created_at' => $source->created_at?->toDateString(),
                 ]),

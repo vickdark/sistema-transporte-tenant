@@ -58,6 +58,19 @@ class LegacyPermissionMap
         'ally_contracts.view' => [['/contratos_aliados/index.php'], ['/contratos_aliados/']],
         'ally_contracts.create' => [['/contratos_aliados/create.php', '/contratos_aliados/']],
         'ally_contracts.update' => [['/contratos_aliados/update.php', '/contratos_aliados/']],
+        // Vehículos: guardar, inhabilitar y habilitar son controladores de la carpeta; habilitar
+        // se llama desde la pantalla de inactivos. Las partes se gestionan con controladores de
+        // `/vehiculos/` y los convenios con los de su carpeta (o de `/vehiculos/`, que la contiene).
+        'vehicles.view' => [['/vehiculos/index.php'], ['/vehiculos/']],
+        'vehicles.create' => [['/vehiculos/create.php', '/vehiculos/']],
+        'vehicles.update' => [['/vehiculos/update.php', '/vehiculos/']],
+        'vehicles.deactivate' => [['/vehiculos/', '/vehiculos/inactivos/index.php'], ['/vehiculos/', '/vehiculos/inactivos/']],
+        'vehicle_parts.view' => [['/vehiculos/partes/index.php'], ['/vehiculos/partes/']],
+        'vehicle_parts.manage' => [['/vehiculos/partes/create.php', '/vehiculos/partes/manage.php', '/vehiculos/']],
+        'agreements.view' => [['/vehiculos/convenios/index.php'], ['/vehiculos/convenios/']],
+        'agreements.create' => [['/vehiculos/convenios/create.php', '/vehiculos/convenios/'], ['/vehiculos/convenios/create.php', '/vehiculos/']],
+        'agreements.update' => [['/vehiculos/convenios/update.php', '/vehiculos/convenios/'], ['/vehiculos/convenios/update.php', '/vehiculos/']],
+        'agreements.delete' => [['/vehiculos/convenios/'], ['/vehiculos/convenios/index.php', '/vehiculos/']],
     ];
 
     /**
@@ -80,6 +93,11 @@ class LegacyPermissionMap
         '/contratos_aliados/js/',
         '/contratos_aliados/check_aliado_session.php',
         '/contratos_aliados/select_aliado.php',
+        '/vehiculos/show.php',
+        '/vehiculos/inactivos/show.php',
+        '/vehiculos/partes/show.php',
+        '/vehiculos/partes/delete.php',
+        '/vehiculos/convenios/show.php',
     ];
 
     /**
@@ -101,7 +119,6 @@ class LegacyPermissionMap
         'proveedoresdash' => 'Portal de proveedores',
         'proveedoresdash_aliados' => 'Portal de aliados',
         'reportes_gerenciales' => 'Reportes gerenciales',
-        'vehiculos' => 'Vehículos',
     ];
 
     /**

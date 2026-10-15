@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LegacyFilesFields from '@/components/central/LegacyFilesFields.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -21,12 +22,18 @@ const form = useForm({
     database: '',
     username: '',
     password: '',
+    files_host: '',
+    files_port: 22 as number | '',
+    files_username: '',
+    files_password: '',
+    files_private_key: '',
+    files_root: '',
     notes: '',
 });
 
 const submit = () => {
     form.post(route('central.migrations.sources.store'), {
-        onFinish: () => form.reset('password'),
+        onFinish: () => form.reset('password', 'files_password', 'files_private_key'),
     });
 };
 </script>
@@ -89,6 +96,8 @@ const submit = () => {
                     <InputError :message="form.errors.notes" />
                 </div>
             </div>
+
+            <LegacyFilesFields v-model="form" :errors="form.errors" />
 
             <div class="flex items-center gap-3">
                 <Button type="submit" :disabled="form.processing">

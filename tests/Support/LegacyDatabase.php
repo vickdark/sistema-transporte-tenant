@@ -123,6 +123,59 @@ class LegacyDatabase
             });
         }
 
+        $schema->create('vehiculos', function (Blueprint $table) {
+            $table->increments('ID');
+            $table->string('Placa');
+            $table->string('NumeroInterno')->nullable();
+            $table->decimal('KilometrajeActual', 10, 2)->default(0);
+            $table->date('FechaMatricula')->nullable()->default('2019-03-15');
+            $table->string('LugarMatricula')->nullable()->default('Cartagena');
+            $table->string('Modelo')->nullable()->default('2019');
+            $table->string('Marca')->nullable()->default('TOYOTA');
+            $table->string('ClaseVehiculo')->nullable()->default('HIACE');
+            $table->string('TipoVehiculo')->nullable()->default('Camioneta Cerrada');
+            $table->string('NumeroMotor')->default('2KD1234567');
+            $table->string('NumeroChasis')->default('JTFSS22P0K0123456');
+            $table->string('Color')->nullable()->default('BLANCO');
+            $table->string('cilindraje')->nullable();
+            $table->string('combustible')->nullable();
+            $table->string('Estado')->default('Activo');
+            $table->integer('proveedor_id')->nullable();
+            $table->integer('aliadoid')->nullable();
+        });
+        $schema->create('vehiculo_documentos', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('id_vehiculo');
+            $table->string('tipo_documento')->nullable();
+            $table->string('numero_documento')->nullable();
+            $table->date('fecha_expedicion')->nullable();
+            $table->date('fecha_vencimiento')->nullable();
+            $table->string('archivo_documento')->nullable();
+            $table->timestamp('creado_en')->nullable();
+        });
+        $schema->create('vehiculo_fotos', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('id_vehiculo');
+            $table->string('ruta_foto');
+            $table->timestamp('fecha_creacion')->nullable();
+        });
+        $schema->create('partes_vehiculo', function (Blueprint $table) {
+            $table->increments('ID');
+            $table->integer('VehiculoID');
+            $table->string('ParteNombre');
+            $table->decimal('KilometrajeRequerido', 10, 2);
+        });
+        $schema->create('convenios', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('Nit');
+            $table->string('RazonSocial');
+        });
+        $schema->create('convenio_vehiculos', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('Convenio_ID');
+            $table->integer('Vehiculo_ID');
+        });
+
         $legacy->table('configuracion_empresa')->insert(['razon_social' => 'Transportes de prueba SAS', 'nit' => $nit]);
 
         app()->instance(LegacyConnection::class, new class extends LegacyConnection

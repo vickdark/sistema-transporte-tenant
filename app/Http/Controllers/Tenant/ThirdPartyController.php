@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Tables\Tenant\ThirdPartiesTable;
 use App\Models\Ally;
 use App\Models\Supplier;
+use App\Models\Vehicle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -69,6 +70,14 @@ abstract class ThirdPartyController extends Controller
                 ] : null,
                 'users_count' => $model->users()->count(),
             ],
+            'vehicles' => $request->user()->can('viewAny', Vehicle::class)
+                ? $model->vehicles()->visibleTo($request->user())->orderByDesc('is_active')->orderBy('plate')->get()->map(fn (Vehicle $vehicle): array => [
+                    'id' => $vehicle->id,
+                    'plate' => $vehicle->plate,
+                    'description' => "{$vehicle->vehicle_class->label()} · {$vehicle->brand} {$vehicle->line} {$vehicle->model_year}",
+                    'is_active' => $vehicle->is_active,
+                ])
+                : null,
             'urls' => ['index' => route("{$this->routePrefix()}.index"), ...$this->rowUrls($model->id)],
             'can' => [
                 'update' => $request->user()->can('update', $model),

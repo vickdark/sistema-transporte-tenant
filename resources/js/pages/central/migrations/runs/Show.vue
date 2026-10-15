@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueueStatusPanel, { type QueueStatus } from '@/components/central/QueueStatusPanel.vue';
 import StatusBadge from '@/components/central/StatusBadge.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
@@ -20,6 +21,7 @@ interface RunDetail {
     status_label: string;
     is_active: boolean;
     waiting_for_worker: boolean;
+    queue_status: QueueStatus | null;
     modules: string[];
     started_at: string | null;
     finished_at: string | null;
@@ -48,9 +50,14 @@ interface IssueRow {
     module: string | null;
     legacy_table: string | null;
     legacy_id: string | null;
+    /** Registros de una advertencia de resumen (sin legacy_id propio). */
+    affected_ids: string[];
     message: string;
     resolved: boolean;
 }
+
+/** Ids que se muestran de una advertencia de resumen; el resto se cuenta. */
+const AFFECTED_IDS_SHOWN = 8;
 
 const props = defineProps<{
     run: RunDetail;
@@ -166,13 +173,7 @@ const details = computed(() => [
         </div>
         <InputError :message="runError" />
 
-        <div
-            v-if="run.waiting_for_worker"
-            class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
-        >
-            La corrida sigue en cola: ningún worker la ha tomado. Verifica que esté corriendo
-            <code class="font-mono">php artisan queue:work</code> (en desarrollo, <code class="font-mono">composer run dev</code> lo incluye).
-        </div>
+        <QueueStatusPanel v-if="run.queue_status" :status="run.queue_status" />
 
         <dl class="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border border-sidebar-border/70 p-4 min-[420px]:grid-cols-2 sm:p-6 xl:grid-cols-3">
             <div v-for="item in details" :key="item.label">
@@ -293,9 +294,19 @@ const details = computed(() => [
                     <StatusBadge :status="row.severity" :label="row.severity_label" />
                 </template>
                 <template #cell-legacy_id="{ row }">
-                    <span class="whitespace-nowrap tabular-nums text-muted-foreground">
-                        {{ row.legacy_table ? `${row.legacy_table} #${row.legacy_id}` : 'General' }}
+                    <span v-if="row.legacy_table && row.legacy_id" class="whitespace-nowrap tabular-nums text-muted-foreground">
+                        {{ `${row.legacy_table} #${row.legacy_id}` }}
                     </span>
+                    <span v-else-if="row.legacy_table" class="block text-muted-foreground" :title="row.affected_ids.join(', ')">
+                        <span class="whitespace-nowrap">{{ row.legacy_table }}</span>
+                        <span v-if="row.affected_ids.length > 0" class="block text-xs tabular-nums">
+                            #{{ row.affected_ids.slice(0, AFFECTED_IDS_SHOWN).join(', #')
+                            }}<template v-if="row.affected_ids.length > AFFECTED_IDS_SHOWN">
+                                y {{ row.affected_ids.length - AFFECTED_IDS_SHOWN }} más</template
+                            >
+                        </span>
+                    </span>
+                    <span v-else class="whitespace-nowrap text-muted-foreground">General</span>
                 </template>
                 <template #cell-message="{ row }">
                     <span class="font-normal" :class="{ 'opacity-60': row.resolved }">{{ row.message }}</span>

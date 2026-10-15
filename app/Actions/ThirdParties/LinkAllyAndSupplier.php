@@ -4,6 +4,7 @@ namespace App\Actions\ThirdParties;
 
 use App\Models\Ally;
 use App\Models\Supplier;
+use App\Models\Vehicle;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -15,8 +16,10 @@ use Illuminate\Validation\ValidationException;
  *   existe uno con el mismo NIT sin vincular, se actualiza con estos datos y se vincula. Queda mixto.
  * - Revertir: rompe el vínculo; los dos registros siguen existiendo por separado.
  *
- * Los vehículos y conductores del registro se asocian (o desasocian) al otro perfil cuando
- * existan esos módulos (2.6 vehículos y 2.7 empleados), dentro de esta misma acción.
+ * Al convertir, los vehículos de los dos registros quedan a nombre de ambos (el legacy solo pasaba
+ * los del registro que se convertía); al revertir, como en el legacy, los vehículos del registro
+ * que se revierte dejan de ser del otro (siguen siendo suyos). Los conductores se suman cuando
+ * exista el módulo de empleados (2.7).
  *
  * @phpstan-type LinkResult array{level: 'success'|'warning', message: string}
  */
@@ -42,6 +45,7 @@ class LinkAllyAndSupplier
             $ally ??= new Ally(['nit' => $supplier->nit]);
             $ally->fill($supplier->only(['name', 'phone', 'address', 'email']))->save();
             $supplier->forceFill(['ally_id' => $ally->id])->save();
+            $this->shareVehicles($supplier, $ally);
 
             return [
                 'level' => 'success',
@@ -71,6 +75,7 @@ class LinkAllyAndSupplier
             $supplier->fill($ally->only(['name', 'phone', 'address', 'email']));
             $supplier->ally_id = $ally->id;
             $supplier->save();
+            $this->shareVehicles($supplier, $ally);
 
             return [
                 'level' => 'success',
@@ -88,7 +93,10 @@ class LinkAllyAndSupplier
             return ['level' => 'warning', 'message' => 'Este proveedor no está registrado como aliado.'];
         }
 
-        $supplier->forceFill(['ally_id' => null])->save();
+        DB::transaction(function () use ($supplier): void {
+            $supplier->forceFill(['ally_id' => null])->save();
+            Vehicle::query()->where('supplier_id', $supplier->id)->update(['ally_id' => null]);
+        });
 
         return ['level' => 'success', 'message' => 'Se ha revertido la conversión a aliado correctamente.'];
     }
@@ -104,9 +112,21 @@ class LinkAllyAndSupplier
             return ['level' => 'warning', 'message' => 'Este aliado no está registrado como proveedor.'];
         }
 
-        $supplier->forceFill(['ally_id' => null])->save();
+        DB::transaction(function () use ($ally, $supplier): void {
+            $supplier->forceFill(['ally_id' => null])->save();
+            Vehicle::query()->where('ally_id', $ally->id)->update(['supplier_id' => null]);
+        });
 
         return ['level' => 'success', 'message' => 'Se ha revertido la conversión a proveedor correctamente.'];
+    }
+
+    /**
+     * Pone a nombre de los dos los vehículos de cada uno.
+     */
+    private function shareVehicles(Supplier $supplier, Ally $ally): void
+    {
+        Vehicle::query()->where('supplier_id', $supplier->id)->update(['ally_id' => $ally->id]);
+        Vehicle::query()->where('ally_id', $ally->id)->whereNull('supplier_id')->update(['supplier_id' => $supplier->id]);
     }
 
     /**

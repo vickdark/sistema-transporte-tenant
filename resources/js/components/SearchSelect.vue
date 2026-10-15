@@ -38,7 +38,8 @@ const load = async (term: string) => {
     loading.value = true;
 
     try {
-        const response = await fetch(`${props.searchUrl}?search=${encodeURIComponent(term)}`, {
+        const separator = props.searchUrl.includes('?') ? '&' : '?';
+        const response = await fetch(`${props.searchUrl}${separator}search=${encodeURIComponent(term)}`, {
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
 

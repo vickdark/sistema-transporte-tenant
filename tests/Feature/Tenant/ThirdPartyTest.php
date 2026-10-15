@@ -4,6 +4,7 @@ use App\Enums\BaseRole;
 use App\Models\Ally;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\Vehicle;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\ExportedSpreadsheet;
 
@@ -134,6 +135,38 @@ describe('convert and revert', function () {
         expect($supplier->refresh()->ally_id)->toBeNull()
             ->and(Ally::query()->find($ally->id))->not->toBeNull();
     });
+
+    test('converting puts the vehicles of both records under both of them', function () {
+        $ally = Ally::factory()->create(['nit' => '45502488']);
+        $supplier = Supplier::factory()->create(['nit' => '45502488']);
+        $allyVehicle = Vehicle::factory()->ownedBy($ally)->create();
+        $supplierVehicle = Vehicle::factory()->ownedBy($supplier)->create();
+
+        $this->post(route('suppliers.convert', $supplier))->assertSessionHasNoErrors();
+
+        expect($allyVehicle->refresh()->only('supplier_id', 'ally_id'))->toBe(['supplier_id' => $supplier->id, 'ally_id' => $ally->id])
+            ->and($supplierVehicle->refresh()->only('supplier_id', 'ally_id'))->toBe(['supplier_id' => $supplier->id, 'ally_id' => $ally->id]);
+    });
+
+    test('reverting leaves the shared vehicles only to the record that reverts, like the legacy', function () {
+        $supplier = Supplier::factory()->mixed()->create();
+        $vehicle = Vehicle::factory()->ownedBy($supplier)->create();
+
+        $this->delete(route('suppliers.revert', $supplier))->assertSessionHasNoErrors();
+
+        expect($vehicle->refresh()->only('supplier_id', 'ally_id'))->toBe(['supplier_id' => $supplier->id, 'ally_id' => null]);
+    });
+});
+
+test('the page of an ally lists its vehicles', function () {
+    $ally = Ally::factory()->create();
+    Vehicle::factory()->ownedBy($ally)->create(['plate' => 'TSX123']);
+    Vehicle::factory()->create();
+
+    $this->get(route('allies.show', $ally))->assertInertia(fn (Assert $page) => $page
+        ->has('vehicles', 1)
+        ->where('vehicles.0.plate', 'TSX123')
+    );
 });
 
 test('exports the suppliers with their type', function () {

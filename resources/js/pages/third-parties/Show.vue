@@ -25,6 +25,8 @@ interface Item {
 const props = defineProps<{
     kind: ThirdPartyKind;
     item: Item;
+    /** Sus vehículos; null si el usuario no puede ver vehículos. */
+    vehicles: { id: number; plate: string; description: string; is_active: boolean }[] | null;
     urls: { index: string; show: string; edit: string; convert: string; revert: string };
     can: { update: boolean; link: boolean };
 }>();
@@ -98,11 +100,26 @@ const { convert, revert } = useThirdPartyLink(props.kind);
             </dl>
 
             <div class="grid gap-4 lg:grid-cols-2">
-                <section class="flex flex-col gap-3 rounded-xl border border-sidebar-border/70 p-4">
-                    <HeadingSmall :title="`Vehículos del ${kind.singular}`" />
-                    <p class="flex items-center gap-2 text-sm text-muted-foreground">
+                <section v-if="vehicles !== null" class="flex flex-col gap-3 rounded-xl border border-sidebar-border/70 p-4">
+                    <HeadingSmall :title="`Vehículos del ${kind.singular} (${vehicles.length})`" />
+                    <ul v-if="vehicles.length > 0" class="divide-y divide-sidebar-border/70">
+                        <li v-for="vehicle in vehicles" :key="vehicle.id" class="flex items-center justify-between gap-3 py-2 text-sm">
+                            <div class="min-w-0">
+                                <Link :href="route('vehicles.show', { vehicle: vehicle.id })" class="font-medium tabular-nums hover:underline">{{
+                                    vehicle.plate
+                                }}</Link>
+                                <span class="block truncate text-xs text-muted-foreground">{{ vehicle.description }}</span>
+                            </div>
+                            <span
+                                v-if="!vehicle.is_active"
+                                class="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                >Inactivo</span
+                            >
+                        </li>
+                    </ul>
+                    <p v-else class="flex items-center gap-2 text-sm text-muted-foreground">
                         <CarFront class="size-4 shrink-0" />
-                        Se mostrarán aquí cuando exista el módulo de vehículos.
+                        No tiene vehículos registrados.
                     </p>
                 </section>
                 <section class="flex flex-col gap-3 rounded-xl border border-sidebar-border/70 p-4">

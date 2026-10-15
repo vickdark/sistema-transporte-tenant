@@ -6,17 +6,24 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Por ahora solo se registran conexiones MySQL de solo lectura; la carga de dump depende de
- * la decisión #4 del plan.
+ * Por ahora solo se registran conexiones MySQL de solo lectura (decisión #4 del plan). El acceso
+ * SFTP a los archivos es opcional: sin él se migran los datos pero no los archivos (documentos y fotos).
  */
 class StoreMigrationSourceRequest extends FormRequest
 {
+    use LegacyFilesConnectionRules;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->prepareFilesConnection();
     }
 
     /**
@@ -34,6 +41,7 @@ class StoreMigrationSourceRequest extends FormRequest
             'username' => ['required', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            ...$this->filesConnectionRules(),
         ];
     }
 
@@ -50,7 +58,16 @@ class StoreMigrationSourceRequest extends FormRequest
             'username' => 'usuario',
             'password' => 'contraseña',
             'notes' => 'notas',
+            ...$this->filesConnectionAttributes(),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return $this->filesConnectionMessages();
     }
 
     /**
@@ -65,5 +82,10 @@ class StoreMigrationSourceRequest extends FormRequest
             'username' => $this->validated('username'),
             'password' => (string) $this->validated('password'),
         ];
+    }
+
+    protected function currentFilesConnection(): ?array
+    {
+        return null;
     }
 }

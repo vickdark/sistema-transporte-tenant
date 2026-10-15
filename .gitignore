@@ -4,6 +4,8 @@
 /public/hot
 /public/storage
 /storage/*.key
+# Archivos de cada empresa (documentos, fotos, logos…) y los de sus tests: nunca van al repositorio.
+/storage/tenant*
 /storage/pail
 /vendor
 .env

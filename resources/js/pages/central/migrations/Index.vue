@@ -19,6 +19,8 @@ interface SourceRow {
     type_label: string;
     host: string | null;
     database: string | null;
+    /** usuario@servidor:carpeta del acceso SFTP a los archivos. */
+    files: string | null;
     runs_count: number;
     created_at: string | null;
 }
@@ -100,6 +102,7 @@ const removeSource = async (source: SourceRow) => {
                             <th class="px-4 py-3 font-medium">Nombre</th>
                             <th class="px-4 py-3 font-medium">Tipo</th>
                             <th class="px-4 py-3 font-medium">Servidor / base</th>
+                            <th class="px-4 py-3 font-medium">Archivos (SFTP)</th>
                             <th class="px-4 py-3 text-right font-medium">Corridas</th>
                             <th class="px-4 py-3"><span class="sr-only">Acciones</span></th>
                         </tr>
@@ -109,9 +112,15 @@ const removeSource = async (source: SourceRow) => {
                             <td class="px-4 py-3 font-medium">{{ source.name }}</td>
                             <td class="px-4 py-3">{{ source.type_label }}</td>
                             <td class="px-4 py-3 text-muted-foreground">{{ source.host }} / {{ source.database }}</td>
+                            <td class="break-all px-4 py-3 text-muted-foreground">{{ source.files ?? 'Sin configurar' }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ source.runs_count }}</td>
                             <td class="px-4 py-3">
-                                <div class="flex justify-end">
+                                <div class="flex justify-end gap-2">
+                                    <ActionButton
+                                        action="edit"
+                                        :label="`Editar ${source.name}`"
+                                        :href="route('central.migrations.sources.edit', { source: source.id })"
+                                    />
                                     <ActionButton
                                         v-if="source.runs_count === 0"
                                         action="delete"
@@ -136,9 +145,25 @@ const removeSource = async (source: SourceRow) => {
                                 <dt class="text-xs text-muted-foreground">Corridas</dt>
                                 <dd class="tabular-nums">{{ source.runs_count }}</dd>
                             </div>
+                            <div class="min-w-0 min-[420px]:col-span-2">
+                                <dt class="text-xs text-muted-foreground">Archivos (SFTP)</dt>
+                                <dd class="break-all">{{ source.files ?? 'Sin configurar' }}</dd>
+                            </div>
                         </dl>
-                        <div v-if="source.runs_count === 0">
-                            <ActionButton action="delete" labeled :label="`Eliminar ${source.name}`" @click="removeSource(source)" />
+                        <div class="flex flex-wrap gap-2">
+                            <ActionButton
+                                action="edit"
+                                labeled
+                                :label="`Editar ${source.name}`"
+                                :href="route('central.migrations.sources.edit', { source: source.id })"
+                            />
+                            <ActionButton
+                                v-if="source.runs_count === 0"
+                                action="delete"
+                                labeled
+                                :label="`Eliminar ${source.name}`"
+                                @click="removeSource(source)"
+                            />
                         </div>
                     </li>
                 </ul>

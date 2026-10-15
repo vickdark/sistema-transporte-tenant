@@ -2,8 +2,11 @@
 
 namespace App\Actions\Migrations\Importers;
 
+use App\Actions\Migrations\LegacyFiles;
+use App\Actions\Migrations\LegacyFilesConnection;
 use App\Actions\Migrations\MigrationRunCancelled;
 use App\Enums\MigrationIssueSeverity;
+use App\Enums\MigrationRunMode;
 use App\Enums\MigrationRunStatus;
 use App\Models\MigrationRun;
 use App\Models\MigrationRunStep;
@@ -33,11 +36,25 @@ class ImportContext
      */
     private const FLUSH_INTERVAL = 0.5;
 
+    private ?LegacyFiles $files = null;
+
     public function __construct(
         public readonly ConnectionInterface $legacy,
         public readonly MigrationRun $run,
         public readonly MigrationRunStep $step,
     ) {}
+
+    /**
+     * Archivos del legacy por el acceso SFTP de la fuente (sin copiar nada si es simulación). Si
+     * la fuente tiene acceso configurado pero no se puede conectar, el paso falla.
+     */
+    public function files(): LegacyFiles
+    {
+        return $this->files ??= new LegacyFiles(
+            $this->run->source ? app(LegacyFilesConnection::class)->connect($this->run->source) : null,
+            $this->run->mode === MigrationRunMode::DryRun,
+        );
+    }
 
     /**
      * Registros que el paso va a leer, para que el panel muestre el progreso desde el inicio.

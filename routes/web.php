@@ -41,6 +41,9 @@ Route::name('central.')->group(function () {
         Route::get('migrations', MigrationsController::class)->name('migrations.index');
         Route::get('migrations/sources/create', [MigrationSourceController::class, 'create'])->name('migrations.sources.create');
         Route::post('migrations/sources', [MigrationSourceController::class, 'store'])->name('migrations.sources.store');
+        Route::post('migrations/sources/test-files', [MigrationSourceController::class, 'testFiles'])->name('migrations.sources.test-files');
+        Route::get('migrations/sources/{source}/edit', [MigrationSourceController::class, 'edit'])->name('migrations.sources.edit');
+        Route::put('migrations/sources/{source}', [MigrationSourceController::class, 'update'])->name('migrations.sources.update');
         Route::delete('migrations/sources/{source}', [MigrationSourceController::class, 'destroy'])->name('migrations.sources.destroy');
         Route::get('migrations/runs/create', [MigrationRunController::class, 'create'])->name('migrations.runs.create');
         Route::get('migrations/runs/export/{format}', [MigrationRunController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('migrations.runs.export');

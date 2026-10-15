@@ -13,7 +13,8 @@ use Illuminate\Http\Request;
 
 /**
  * Cuarentena, errores y advertencias de una corrida: el reporte que se revisa (y descarga) antes
- * de una corrida real. Búsqueda por detalle o id legacy y filtro por tipo.
+ * de una corrida real. Búsqueda por detalle o id legacy (también entre los registros afectados de
+ * una advertencia de resumen) y filtro por tipo.
  *
  * @extends DataTable<MigrationIssue>
  */
@@ -39,7 +40,10 @@ class MigrationIssuesTable extends DataTable
             ->with('step:id,module')
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('message', "%{$search}%")
-                ->orWhere('legacy_id', $search)))
+                ->orWhere('legacy_id', $search)
+                ->when(ctype_digit($search), fn ($query) => $query
+                    ->orWhereJsonContains('payload->legacy_ids', (int) $search)
+                    ->orWhereJsonContains('payload->legacy_ids', $search))))
             ->when($severity, fn ($query) => $query->where('severity', $severity));
     }
 
@@ -65,6 +69,7 @@ class MigrationIssuesTable extends DataTable
             'module' => $this->moduleLabel($model),
             'legacy_table' => $model->legacy_table,
             'legacy_id' => $model->legacy_id,
+            'affected_ids' => $this->affectedIds($model),
             'message' => $model->message,
             'resolved' => $model->resolved_at !== null,
         ];
@@ -76,7 +81,7 @@ class MigrationIssuesTable extends DataTable
             'Tipo' => fn (MigrationIssue $issue) => $issue->severity->label(),
             'Paso' => fn (MigrationIssue $issue) => $this->moduleLabel($issue),
             'Tabla legacy' => fn (MigrationIssue $issue) => $issue->legacy_table,
-            'ID legacy' => fn (MigrationIssue $issue) => $issue->legacy_id,
+            'ID legacy' => fn (MigrationIssue $issue) => $issue->legacy_id ?? (implode(', ', $this->affectedIds($issue)) ?: null),
             'Detalle' => fn (MigrationIssue $issue) => $issue->message,
         ];
     }
@@ -91,6 +96,16 @@ class MigrationIssuesTable extends DataTable
         $severity = $this->severity();
 
         return [...parent::filterSummary(), ...($severity ? ["Tipo: {$severity->label()}"] : [])];
+    }
+
+    /**
+     * Registros legacy de una advertencia de resumen ("N registros de la tabla X: …").
+     *
+     * @return list<string>
+     */
+    private function affectedIds(MigrationIssue $issue): array
+    {
+        return array_map(strval(...), array_values((array) ($issue->payload['legacy_ids'] ?? [])));
     }
 
     private function moduleLabel(MigrationIssue $issue): ?string

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Central;
 
+use App\Actions\Migrations\MigrationRunQueueStatus;
 use App\Actions\Migrations\StartMigrationRun;
 use App\Enums\MigrationIssueSeverity;
 use App\Enums\MigrationModule;
@@ -97,6 +98,8 @@ class MigrationRunController extends Controller
                 'status_label' => $run->status->label(),
                 'is_active' => $run->isActive(),
                 'waiting_for_worker' => $run->isWaitingForWorker(),
+                // Por qué no arranca (solo mientras espera un worker): se recalcula en cada refresco.
+                'queue_status' => $run->isWaitingForWorker() ? app(MigrationRunQueueStatus::class)->for($run) : null,
                 'modules' => array_map(fn (string $module): string => MigrationModule::tryFrom($module)?->label() ?? $module, $run->modules),
                 'started_at' => $run->started_at?->toDateTimeString(),
                 'finished_at' => $run->finished_at?->toDateTimeString(),

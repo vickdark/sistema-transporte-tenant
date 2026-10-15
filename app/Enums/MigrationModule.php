@@ -10,6 +10,7 @@ use App\Actions\Migrations\Importers\RolesImporter;
 use App\Actions\Migrations\Importers\RoutesImporter;
 use App\Actions\Migrations\Importers\ThirdPartiesImporter;
 use App\Actions\Migrations\Importers\UsersImporter;
+use App\Actions\Migrations\Importers\VehiclesImporter;
 
 /**
  * Módulos que se pueden migrar desde el legacy, cada uno con su importador. El orden de los casos
@@ -23,6 +24,7 @@ enum MigrationModule: string
     case Clients = 'clients';
     case Routes = 'routes';
     case Contracts = 'contracts';
+    case Vehicles = 'vehicles';
     case Users = 'users';
 
     public function label(): string
@@ -34,6 +36,7 @@ enum MigrationModule: string
             self::Clients => 'Clientes',
             self::Routes => 'Rutas',
             self::Contracts => 'Contratos',
+            self::Vehicles => 'Vehículos (documentos, fotos, partes y convenios)',
             self::Users => 'Usuarios',
         };
     }
@@ -45,7 +48,7 @@ enum MigrationModule: string
     {
         return match ($this) {
             self::Company, self::Roles, self::ThirdParties, self::Routes => [],
-            self::Clients => [self::ThirdParties],
+            self::Clients, self::Vehicles => [self::ThirdParties],
             self::Contracts => [self::Clients],
             self::Users => [self::Roles],
         };
@@ -63,6 +66,7 @@ enum MigrationModule: string
             self::Clients => ClientsImporter::class,
             self::Routes => RoutesImporter::class,
             self::Contracts => ContractsImporter::class,
+            self::Vehicles => VehiclesImporter::class,
             self::Users => UsersImporter::class,
         };
     }

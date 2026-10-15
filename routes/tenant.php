@@ -2,17 +2,24 @@
 
 declare(strict_types=1);
 
+use App\Enums\VehicleDocumentType;
+use App\Http\Controllers\Tenant\AgreementController;
 use App\Http\Controllers\Tenant\AllyController;
 use App\Http\Controllers\Tenant\ClientController;
 use App\Http\Controllers\Tenant\CompanyProfileController;
 use App\Http\Controllers\Tenant\ContractController;
+use App\Http\Controllers\Tenant\PartController;
 use App\Http\Controllers\Tenant\RoleController;
 use App\Http\Controllers\Tenant\RouteController;
 use App\Http\Controllers\Tenant\SupplierController;
 use App\Http\Controllers\Tenant\UserController;
+use App\Http\Controllers\Tenant\VehicleController;
+use App\Http\Controllers\Tenant\VehicleDocumentController;
+use App\Http\Controllers\Tenant\VehiclePhotoController;
 use App\Http\Middleware\EnsureTenantIsActive;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\InitializeTenancyBySubdomainOfBaseDomain;
+use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -93,6 +100,40 @@ Route::middleware([
                 Route::put('{contract}', 'update')->name('update');
             });
         }
+
+        // Vehículos: no se eliminan (órdenes, mantenimientos y combustible los usan); se inhabilitan
+        // y se habilitan. Documentos y fotos se gestionan desde su ficha.
+        Route::get('vehicles/export/{format}', [VehicleController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('vehicles.export');
+        Route::get('vehicles/search-owners', [VehicleController::class, 'searchOwners'])->name('vehicles.search-owners');
+        // Precognition: el formulario valida cada campo en vivo con las reglas de VehicleRequest.
+        Route::resource('vehicles', VehicleController::class)->except('destroy')->middlewareFor(['store', 'update'], HandlePrecognitiveRequests::class);
+        Route::post('vehicles/{vehicle}/deactivate', [VehicleController::class, 'deactivate'])->name('vehicles.deactivate');
+        Route::post('vehicles/{vehicle}/activate', [VehicleController::class, 'activate'])->name('vehicles.activate');
+        Route::scopeBindings()->group(function () {
+            $documentTypes = array_column(VehicleDocumentType::cases(), 'value');
+            Route::post('vehicles/{vehicle}/documents/{type}', [VehicleDocumentController::class, 'store'])->whereIn('type', $documentTypes)->name('vehicles.documents.store');
+            Route::post('vehicles/{vehicle}/documents/{type}/renew', [VehicleDocumentController::class, 'renew'])->whereIn('type', $documentTypes)->name('vehicles.documents.renew');
+            Route::get('vehicles/{vehicle}/documents/{document}/file', [VehicleDocumentController::class, 'file'])->name('vehicles.documents.file');
+            Route::post('vehicles/{vehicle}/photos', [VehiclePhotoController::class, 'store'])->name('vehicles.photos.store');
+            Route::get('vehicles/{vehicle}/photos/{photo}', [VehiclePhotoController::class, 'show'])->name('vehicles.photos.show');
+            Route::delete('vehicles/{vehicle}/photos/{photo}', [VehiclePhotoController::class, 'destroy'])->name('vehicles.photos.destroy');
+        });
+
+        // Partes de vehículos: catálogo y, en la ficha de cada parte, sus vehículos.
+        Route::get('parts/export/{format}', [PartController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('parts.export');
+        Route::resource('parts', PartController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+        Route::scopeBindings()->prefix('parts/{part}/vehicles')->name('parts.vehicles.')->controller(PartController::class)->group(function () {
+            Route::post('/', 'assign')->name('assign');
+            Route::post('all', 'assignAll')->name('assign-all');
+            Route::delete('/', 'unassignAll')->name('unassign-all');
+            Route::put('{vehiclePart}', 'updateAssignment')->name('update');
+            Route::delete('{vehiclePart}', 'unassign')->name('unassign');
+        });
+
+        // Convenios: como en el legacy se eliminan (sus vehículos quedan sin convenio).
+        Route::get('agreements/export/{format}', [AgreementController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('agreements.export');
+        Route::get('agreements/search-vehicles', [AgreementController::class, 'searchVehicles'])->name('agreements.search-vehicles');
+        Route::resource('agreements', AgreementController::class);
 
         Route::get('roles/export/{format}', [RoleController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('roles.export');
         Route::resource('roles', RoleController::class)->except('show');

@@ -38,17 +38,28 @@ enum Permission: string
     case AllyContractsView = 'ally_contracts.view';
     case AllyContractsCreate = 'ally_contracts.create';
     case AllyContractsUpdate = 'ally_contracts.update';
+    case VehiclesView = 'vehicles.view';
+    case VehiclesCreate = 'vehicles.create';
+    case VehiclesUpdate = 'vehicles.update';
+    case VehiclesDeactivate = 'vehicles.deactivate';
+    case VehiclePartsView = 'vehicle_parts.view';
+    case VehiclePartsManage = 'vehicle_parts.manage';
+    case AgreementsView = 'agreements.view';
+    case AgreementsCreate = 'agreements.create';
+    case AgreementsUpdate = 'agreements.update';
+    case AgreementsDelete = 'agreements.delete';
 
     public function label(): string
     {
         return match ($this) {
-            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView, self::ClientsView, self::RoutesView, self::ContractsView, self::AllyContractsView => 'Ver',
-            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate, self::ClientsCreate, self::RoutesCreate, self::ContractsCreate, self::AllyContractsCreate => 'Crear',
-            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate, self::ClientsUpdate, self::RoutesUpdate, self::ContractsUpdate, self::AllyContractsUpdate => 'Editar',
-            self::UsersDelete => 'Eliminar',
-            self::RolesManage, self::CompanyManage => 'Administrar',
+            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView, self::ClientsView, self::RoutesView, self::ContractsView, self::AllyContractsView, self::VehiclesView, self::VehiclePartsView, self::AgreementsView => 'Ver',
+            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate, self::ClientsCreate, self::RoutesCreate, self::ContractsCreate, self::AllyContractsCreate, self::VehiclesCreate, self::AgreementsCreate => 'Crear',
+            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate, self::ClientsUpdate, self::RoutesUpdate, self::ContractsUpdate, self::AllyContractsUpdate, self::AgreementsUpdate => 'Editar',
+            self::VehiclesUpdate => 'Editar (incluye documentos y fotos)',
+            self::UsersDelete, self::AgreementsDelete => 'Eliminar',
+            self::RolesManage, self::CompanyManage, self::VehiclePartsManage => 'Administrar',
             self::AlliesLink, self::SuppliersLink => 'Convertir en mixto / revertir',
-            self::ClientsDeactivate, self::RoutesDeactivate => 'Inhabilitar / habilitar',
+            self::ClientsDeactivate, self::RoutesDeactivate, self::VehiclesDeactivate => 'Inhabilitar / habilitar',
         };
     }
 
@@ -67,6 +78,9 @@ enum Permission: string
             self::RoutesView, self::RoutesCreate, self::RoutesUpdate, self::RoutesDeactivate => 'Rutas',
             self::ContractsView, self::ContractsCreate, self::ContractsUpdate => 'Contratos',
             self::AllyContractsView, self::AllyContractsCreate, self::AllyContractsUpdate => 'Contratos de aliados',
+            self::VehiclesView, self::VehiclesCreate, self::VehiclesUpdate, self::VehiclesDeactivate => 'Vehículos',
+            self::VehiclePartsView, self::VehiclePartsManage => 'Partes de vehículos',
+            self::AgreementsView, self::AgreementsCreate, self::AgreementsUpdate, self::AgreementsDelete => 'Convenios',
         };
     }
 

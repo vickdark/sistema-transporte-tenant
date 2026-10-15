@@ -3,7 +3,7 @@
 > Documento vivo. Se ajusta a medida que avanzamos; cada cambio de decisión se anota en el
 > [registro de decisiones](#registro-de-decisiones).
 >
-> **Estado:** Fase 0 y Fase 1 terminadas. Fase 2 en curso: 2.1 (configuración), 2.2 (aliados y proveedores), 2.3 (clientes), 2.4 (rutas) y 2.5 (contratos) terminadas.
+> **Estado:** Fase 0 y Fase 1 terminadas. Fase 2 en curso: 2.1 (configuración), 2.2 (aliados y proveedores), 2.3 (clientes), 2.4 (rutas), 2.5 (contratos) y 2.6 (vehículos) terminadas.
 
 ---
 
@@ -93,7 +93,7 @@ Orden por dependencias. Cada módulo incluye: migraciones, modelos, Policies, pa
 | 2.3 ✅ | Clientes | Igual que el legacy: persona/empresa, código de sucursal, dueño empresa o aliado (`ally_id`): cada usuario ve solo los clientes de su dueño (también inactivos; el legacy los mostraba todos). Validaciones del editar legacy en crear y editar; identificación única en toda la base salvo que no cambie al editar. Inhabilitar/habilitar, sin eliminar. `users.client_id`. Importador `clients` (dueño desconocido → cuarentena; repetidos y formatos inválidos se migran y se reportan) |
 | 2.4 ✅ | Rutas | Igual que el legacy: inicio, fin (el nombre es "Inicio - Fin"), tipo, estado y descripción, todos obligatorios. Se corrige que el estado no se podía cambiar al editar. No se eliminan: inhabilitar las pasa a Inactivas (listado aparte). No se repiten inicio y fin sin distinguir mayúsculas ni espacios. Modelo `TransportRoute` (tabla `routes`). La creación rápida desde la orden (reutiliza la ruta si ya existe) se conecta en 2.8. Importador `routes`: las repetidas se **unifican** (entra la de id más antiguo; las demás quedan en `legacy_aliases` para que el importador de órdenes resuelva su ruta con `LegacyAlias::resolve`) |
 | 2.5 ✅ | Contratos propios y contratos de aliados | Módulos separados (rutas y permisos `contracts.*` / `ally_contracts.*`) sobre una tabla `contracts` (`kind` own/ally, `ally_id`). Como el legacy: listado agrupado por cliente, objeto de lista fija, fin hasta el 31/dic del año de inicio, responsable obligatorio, sin eliminar; en los de aliados un usuario de la empresa elige primero el aliado (sesión). Se editan vigentes y futuros (el legacy solo vigentes). "Un contrato a la vez": las fechas no se cruzan con otro del mismo cliente. `number` = número del FUEC, consecutivo por clase (migrados conservan el id legacy). Importador `contracts` |
-| 2.6 | Vehículos | Documentos, fotos, partes (catálogo en tabla), convenios. Igual que 2.7: vehículos de aliados/proveedores mixtos en `LinkAllyAndSupplier`; listado y ficha de terceros muestran sus vehículos y conductores |
+| 2.6 ✅ | Vehículos | Como el legacy: placa AAA999 única, obligatorios salvo número interno, cilindraje y combustible; dueño empresa, proveedor o aliado (un tercero mixto deja el vehículo a nombre de los dos, `vehicles.supplier_id` + `ally_id`); no se eliminan, se inhabilitan (listado aparte). Un usuario de un aliado o proveedor solo ve los vehículos de su tercero. Documentos (los 8 del legacy, en el formulario del vehículo como el legacy y en su ficha): uno **vigente** por tipo; corregir no deja rastro y **renovar** (desde la ficha) pasa el anterior al **historial** con su archivo; estado vigente / por vencer (30 días) / vencido. Fotos: hasta 5. Archivos en el disco privado de la empresa. **Partes**: catálogo en tabla (`parts`) + `vehicle_parts` con el km entre mantenimientos; gestión por parte (agregar/quitar a un vehículo o a todos, cambiar km). **Convenios**: un vehículo en máximo un convenio; se eliminan como en el legacy. `LinkAllyAndSupplier` comparte los vehículos al convertir y los desasocia al revertir. La ficha de terceros lista sus vehículos. Importador `vehicles` (incluye documentos, fotos, partes y convenios; copia los archivos desde la carpeta de la fuente) |
 | 2.7 | Empleados y conductores | "Conductor" es una función del empleado, no un rol. Documentos con vencimiento. Al convertir/revertir un aliado o proveedor, sus conductores se asocian/desasocian al otro perfil (acción `LinkAllyAndSupplier`, reemplaza el trigger legacy) |
 | 2.8 | **Órdenes de servicio** | Núcleo. Máquina de estados explícita, pasajeros, apoyo, observaciones, kilometrajes. Ruta: `LegacyAlias::resolve` en la migración; selector solo de rutas activas y creación rápida reutilizando la existente. Contrato creado desde la orden con las mismas reglas de 2.5 (si el cliente tiene uno vigente, la orden lo usa) |
 | 2.9 | **Órdenes de aliados** | **Dominio separado** de las órdenes propias (mismo esquema legacy, distinto negocio). Flujo de estados por definir |
@@ -156,8 +156,17 @@ debe servir para cualquier empresa futura que llegue con su propia base legacy.
   cuarentena; nunca se asigna un valor "por defecto" que otorgue acceso o cambie el significado.
 - **Tablas de mapeo versionadas** en el repo (roles legacy → roles nuevos, URLs legacy → permisos,
   enums legacy → catálogos).
-- **Archivos:** copia de `uploads/` al almacenamiento del inquilino con verificación de checksum;
-  faltantes a cuarentena.
+- **Archivos:** la fuente tiene un *acceso SFTP* opcional a la carpeta del legacy en su servidor (la que contiene
+  `uploads/`): servidor, puerto, usuario, contraseña o llave privada y carpeta, cifrados como la conexión MySQL y nunca
+  enviados al frontend. Así la migración funciona igual desde el propio servidor que desde otro equipo (p. ej. pruebas en
+  local contra los archivos reales). Al guardar la fuente se prueba la conexión y que exista `uploads/`; en una corrida,
+  si no conecta, el paso falla con el motivo real. Las rutas guardadas en la base legacy se resuelven tal cual contra esa
+  carpeta (nunca fuera de ella), solo se leen, y se copian al disco privado de la empresa verificando tamaño y checksum
+  (`App\Actions\Migrations\LegacyFilesConnection` / `LegacyFiles`); en simulación no se copia nada. Un archivo que falta
+  no manda el registro a cuarentena: entra sin archivo (una foto no entra) y se reporta; al repetir la corrida se completa.
+  **Kemuel:** carpeta `/var/www/transporteskemuel.mambacode.dev` en `srv805136`; conviene un usuario SFTP propio con
+  permiso de solo lectura sobre ella. Después del corte nada se guarda allí: todo archivo va a `storage/tenant<id>/app/`
+  del sistema nuevo.
 
 ### 5.4 Reglas conocidas de mapeo (de la revisión de la BD de producción)
 - **Roles:** mapeo 1:1 por `id` + `nombre` (ambos deben coincidir o la corrida se detiene).
@@ -300,6 +309,8 @@ Además: `queue:work` bajo Supervisor y el cron de `schedule:run`. Si hay un pro
 balanceador), configurar los proxies de confianza para que Laravel vea el host y el esquema reales.
 
 **7. Respaldos:** `pg_dump` de toda la base, o de una sola empresa con `pg_dump -n tenant_<subdominio>`.
+Además, los archivos de las empresas (documentos, fotos, logos): `storage/tenant<id>/app/` de cada una. La base y
+estos archivos se respaldan juntos, porque la base guarda las rutas de los archivos.
 
 ## Registro de decisiones
 
@@ -354,3 +365,10 @@ balanceador), configurar los proxies de confianza para que Laravel vea el host y
 | 2026-10-15 | 2.5: número de contrato del FUEC consecutivo por clase, continuando desde el último id legacy |
 | 2026-10-15 | 2.8: el contrato creado desde la orden aplica las mismas reglas que la pantalla de contratos |
 | 2026-10-15 | 2.3/2.5: el cliente tiene correo, obligatorio salvo en los migrados (el legacy no lo tenía). En contratos de un cliente persona el responsable es el mismo cliente; si no tiene correo se pide en el contrato y se guarda también en el cliente. Solo los clientes empresa piden datos del responsable |
+| 2026-10-15 | 2.6: los vehículos no se eliminan (el legacy los borraba desde inactivos); se inhabilitan como clientes y rutas |
+| 2026-10-15 | 2.6: documentos con un vigente por tipo e historial: corregir no deja rastro, renovar guarda el anterior con su archivo |
+| 2026-10-15 | 2.6: un vehículo está como mucho en un convenio (el FUEC legacy tomaba el primero) |
+| 2026-10-15 | 2.6: al convertir un aliado/proveedor los vehículos de ambos quedan a nombre de los dos (el legacy solo pasaba los del que se convertía); al revertir, como el legacy |
+| 2026-10-15 | Migración de archivos: las rutas de la base legacy se resuelven contra la carpeta del legacy que contiene `uploads/`; un archivo faltante se reporta y no manda el registro a cuarentena |
+| 2026-10-15 | 2.6: `DiferenciaKilometraje` (km recorridos en servicio, para el rendimiento de combustible) se migra con la operación del conductor (2.11); al construir mantenimientos (2.14) revisar que eliminar una parte no borre su historial |
+| 2026-10-15 | **Reemplaza a la lectura directa del disco:** los archivos del legacy se leen por SFTP (dependencia `league/flysystem-sftp-v3` aprobada), para no depender de que el sistema corra en el mismo servidor. Kemuel: `/var/www/transporteskemuel.mambacode.dev`. Tras el corte los archivos solo viven en el almacenamiento del sistema nuevo |

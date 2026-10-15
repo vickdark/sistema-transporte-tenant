@@ -5,15 +5,19 @@ use App\Enums\ClientType;
 use App\Enums\MigrationIssueSeverity;
 use App\Enums\MigrationRunStatus;
 use App\Enums\Permission;
+use App\Enums\RouteStatus;
+use App\Enums\RouteType;
 use App\Models\Ally;
 use App\Models\CentralUser;
 use App\Models\Client;
 use App\Models\CompanyProfile;
+use App\Models\LegacyAlias;
 use App\Models\MigrationRun;
 use App\Models\MigrationSource;
 use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\Tenant;
+use App\Models\TransportRoute;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Tests\Support\LegacyDatabase;
@@ -357,6 +361,47 @@ test('reports the clients repeated within the same owner', function () {
     $this->tenant->run(fn () => expect(Client::count())->toBe(3));
     expect($run->issues()->pluck('message')->all())
         ->toContain('2 clientes de la empresa con la identificación 900123456 (#10, #11). Se migran todos; conviene depurarlos.');
+});
+
+test('imports the routes keeping their creation date', function () {
+    $this->legacy->table('rutas')->insert([
+        ['ID' => 1, 'PuntoInicio' => ' Centro ', 'PuntoFin' => 'Villaestrella', 'Descripcion' => 'Ruta fija', 'TipoRuta' => 'montañosa', 'Estado' => 'Mantenimiento', 'FechaCreacion' => '2025-05-05 09:51:49'],
+        ['ID' => 3, 'PuntoInicio' => 'A', 'PuntoFin' => 'B', 'Descripcion' => null, 'TipoRuta' => 'aérea', 'Estado' => 'Activa', 'FechaCreacion' => null],
+    ]);
+
+    $run = startLegacyRun(['routes']);
+
+    expect($run->steps->sole()->only('inserted_count', 'quarantined_count'))->toBe(['inserted_count' => 1, 'quarantined_count' => 1])
+        ->and($run->issues()->pluck('message')->all())->toContain('Tipo de ruta desconocido: "aérea".');
+    $this->tenant->run(function () {
+        $route = TransportRoute::query()->where('legacy_id', '1')->sole();
+
+        expect($route->only('start_point', 'type', 'status'))->toBe(['start_point' => 'Centro', 'type' => RouteType::Mountain, 'status' => RouteStatus::Maintenance])
+            ->and($route->created_at->toDateTimeString())->toBe('2025-05-05 09:51:49');
+    });
+});
+
+test('loads repeated routes only once and points the duplicates to it', function () {
+    $this->legacy->table('rutas')->insert([
+        ['ID' => 4, 'PuntoInicio' => 'Centro', 'PuntoFin' => 'Villaestrella', 'Descripcion' => null, 'Estado' => 'Mantenimiento'],
+        ['ID' => 7, 'PuntoInicio' => ' centro', 'PuntoFin' => 'VILLAESTRELLA ', 'Descripcion' => 'Ruta fija', 'Estado' => 'Activa'],
+        ['ID' => 9, 'PuntoInicio' => 'CENTRO', 'PuntoFin' => 'villaestrella', 'Descripcion' => null, 'Estado' => 'Inactiva'],
+    ]);
+    // Una corrida anterior (antes de unificar) había cargado una de las repetidas por separado.
+    $this->tenant->run(fn () => TransportRoute::factory()->create(['start_point' => 'centro', 'end_point' => 'VILLAESTRELLA'])
+        ->forceFill(['legacy_source' => 'rutas', 'legacy_id' => '7'])->save());
+
+    $run = startLegacyRun(['routes']);
+
+    expect($run->steps->sole()->only('read_count', 'inserted_count', 'skipped_count'))->toBe(['read_count' => 3, 'inserted_count' => 1, 'skipped_count' => 2])
+        ->and($run->issues()->pluck('message')->all())->toContain('3 rutas "Centro - Villaestrella" eran la misma: se unificaron en la #4 (también #7, #9).');
+    $this->tenant->run(function () {
+        $route = TransportRoute::query()->sole();
+
+        expect($route->only('legacy_id', 'description', 'status'))->toBe(['legacy_id' => '4', 'description' => 'Ruta fija', 'status' => RouteStatus::Active])
+            ->and(LegacyAlias::resolve(TransportRoute::class, 'rutas', 9))->toBe($route->id)
+            ->and(LegacyAlias::resolve(TransportRoute::class, 'rutas', 4))->toBe($route->id);
+    });
 });
 
 test('refuses a source that belongs to another company', function () {

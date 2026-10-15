@@ -14,7 +14,7 @@ return new class extends Migration
      * - La identificación no lleva índice único: producción tiene repetidos (sucursales y
      *   duplicados) que se migran tal cual; la regla de no repetir se valida al crear y editar.
      * - `users.client_id`: la cuenta del portal de un cliente. Un usuario pertenece como mucho a
-     *   un actor (aliado, proveedor o cliente; empleados se suman en 2.5).
+     *   un actor (aliado, proveedor o cliente; empleados se suman en 2.7).
      */
     public function up(): void
     {

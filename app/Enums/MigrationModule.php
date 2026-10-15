@@ -6,6 +6,7 @@ use App\Actions\Migrations\Importers\ClientsImporter;
 use App\Actions\Migrations\Importers\CompanyImporter;
 use App\Actions\Migrations\Importers\LegacyImporter;
 use App\Actions\Migrations\Importers\RolesImporter;
+use App\Actions\Migrations\Importers\RoutesImporter;
 use App\Actions\Migrations\Importers\ThirdPartiesImporter;
 use App\Actions\Migrations\Importers\UsersImporter;
 
@@ -19,6 +20,7 @@ enum MigrationModule: string
     case Roles = 'roles';
     case ThirdParties = 'third_parties';
     case Clients = 'clients';
+    case Routes = 'routes';
     case Users = 'users';
 
     public function label(): string
@@ -28,6 +30,7 @@ enum MigrationModule: string
             self::Roles => 'Roles y permisos',
             self::ThirdParties => 'Aliados y proveedores',
             self::Clients => 'Clientes',
+            self::Routes => 'Rutas',
             self::Users => 'Usuarios',
         };
     }
@@ -38,7 +41,7 @@ enum MigrationModule: string
     public function dependsOn(): array
     {
         return match ($this) {
-            self::Company, self::Roles, self::ThirdParties => [],
+            self::Company, self::Roles, self::ThirdParties, self::Routes => [],
             self::Clients => [self::ThirdParties],
             self::Users => [self::Roles],
         };
@@ -54,6 +57,7 @@ enum MigrationModule: string
             self::Roles => RolesImporter::class,
             self::ThirdParties => ThirdPartiesImporter::class,
             self::Clients => ClientsImporter::class,
+            self::Routes => RoutesImporter::class,
             self::Users => UsersImporter::class,
         };
     }

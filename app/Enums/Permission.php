@@ -28,17 +28,21 @@ enum Permission: string
     case ClientsCreate = 'clients.create';
     case ClientsUpdate = 'clients.update';
     case ClientsDeactivate = 'clients.deactivate';
+    case RoutesView = 'routes.view';
+    case RoutesCreate = 'routes.create';
+    case RoutesUpdate = 'routes.update';
+    case RoutesDeactivate = 'routes.deactivate';
 
     public function label(): string
     {
         return match ($this) {
-            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView, self::ClientsView => 'Ver',
-            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate, self::ClientsCreate => 'Crear',
-            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate, self::ClientsUpdate => 'Editar',
+            self::UsersView, self::RolesView, self::AlliesView, self::SuppliersView, self::ClientsView, self::RoutesView => 'Ver',
+            self::UsersCreate, self::AlliesCreate, self::SuppliersCreate, self::ClientsCreate, self::RoutesCreate => 'Crear',
+            self::UsersUpdate, self::AlliesUpdate, self::SuppliersUpdate, self::ClientsUpdate, self::RoutesUpdate => 'Editar',
             self::UsersDelete => 'Eliminar',
             self::RolesManage, self::CompanyManage => 'Administrar',
             self::AlliesLink, self::SuppliersLink => 'Convertir en mixto / revertir',
-            self::ClientsDeactivate => 'Inhabilitar / habilitar',
+            self::ClientsDeactivate, self::RoutesDeactivate => 'Inhabilitar / habilitar',
         };
     }
 
@@ -54,6 +58,7 @@ enum Permission: string
             self::AlliesView, self::AlliesCreate, self::AlliesUpdate, self::AlliesLink => 'Aliados',
             self::SuppliersView, self::SuppliersCreate, self::SuppliersUpdate, self::SuppliersLink => 'Proveedores',
             self::ClientsView, self::ClientsCreate, self::ClientsUpdate, self::ClientsDeactivate => 'Clientes',
+            self::RoutesView, self::RoutesCreate, self::RoutesUpdate, self::RoutesDeactivate => 'Rutas',
         };
     }
 

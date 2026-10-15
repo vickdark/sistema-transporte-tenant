@@ -46,6 +46,11 @@ class LegacyPermissionMap
         'clients.create' => [['/clientes/create.php', '/clientes/']],
         'clients.update' => [['/clientes/update.php', '/clientes/']],
         'clients.deactivate' => [['/clientes/', '/clientes/inactivos/index.php'], ['/clientes/', '/clientes/inactivos/']],
+        // Rutas: el legacy eliminaba desde el listado (controlador de la carpeta); aquí se inactiva.
+        'routes.view' => [['/rutas/index.php'], ['/rutas/']],
+        'routes.create' => [['/rutas/create.php', '/rutas/']],
+        'routes.update' => [['/rutas/update.php', '/rutas/']],
+        'routes.deactivate' => [['/rutas/']],
     ];
 
     /**
@@ -61,6 +66,7 @@ class LegacyPermissionMap
         '/clientes/inactivos/index.php',
         '/clientes/inactivos/',
         '/clientes/inactivos/show.php',
+        '/rutas/show.php',
     ];
 
     /**
@@ -84,7 +90,6 @@ class LegacyPermissionMap
         'proveedoresdash' => 'Portal de proveedores',
         'proveedoresdash_aliados' => 'Portal de aliados',
         'reportes_gerenciales' => 'Reportes gerenciales',
-        'rutas' => 'Rutas',
         'vehiculos' => 'Vehículos',
     ];
 

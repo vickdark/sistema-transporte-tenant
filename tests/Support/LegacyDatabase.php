@@ -99,6 +99,16 @@ class LegacyDatabase
             $table->integer('aliadoid')->nullable();
         });
 
+        $schema->create('rutas', function (Blueprint $table) {
+            $table->increments('ID');
+            $table->string('PuntoInicio')->nullable();
+            $table->string('PuntoFin')->nullable();
+            $table->text('Descripcion')->nullable();
+            $table->string('TipoRuta')->default('urbana');
+            $table->string('Estado')->default('Activa');
+            $table->dateTime('FechaCreacion')->nullable();
+        });
+
         $legacy->table('configuracion_empresa')->insert(['razon_social' => 'Transportes de prueba SAS', 'nit' => $nit]);
 
         app()->instance(LegacyConnection::class, new class extends LegacyConnection

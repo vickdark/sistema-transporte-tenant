@@ -6,6 +6,7 @@ use App\Http\Controllers\Tenant\AllyController;
 use App\Http\Controllers\Tenant\ClientController;
 use App\Http\Controllers\Tenant\CompanyProfileController;
 use App\Http\Controllers\Tenant\RoleController;
+use App\Http\Controllers\Tenant\RouteController;
 use App\Http\Controllers\Tenant\SupplierController;
 use App\Http\Controllers\Tenant\UserController;
 use App\Http\Middleware\EnsureTenantIsActive;
@@ -65,6 +66,12 @@ Route::middleware([
         Route::resource('clients', ClientController::class)->except('destroy');
         Route::post('clients/{client}/deactivate', [ClientController::class, 'deactivate'])->name('clients.deactivate');
         Route::post('clients/{client}/activate', [ClientController::class, 'activate'])->name('clients.activate');
+
+        // Rutas: no se eliminan (las órdenes las usan); se inhabilitan y se habilitan.
+        Route::get('routes/export/{format}', [RouteController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('routes.export');
+        Route::resource('routes', RouteController::class)->except('destroy');
+        Route::post('routes/{route}/deactivate', [RouteController::class, 'deactivate'])->name('routes.deactivate');
+        Route::post('routes/{route}/activate', [RouteController::class, 'activate'])->name('routes.activate');
 
         Route::get('roles/export/{format}', [RoleController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('roles.export');
         Route::resource('roles', RoleController::class)->except('show');

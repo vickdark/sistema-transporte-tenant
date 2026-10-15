@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
  * - Revertir: rompe el vínculo; los dos registros siguen existiendo por separado.
  *
  * Los vehículos y conductores del registro se asocian (o desasocian) al otro perfil cuando
- * existan esos módulos (2.5 y 2.6), dentro de esta misma acción.
+ * existan esos módulos (2.6 vehículos y 2.7 empleados), dentro de esta misma acción.
  *
  * @phpstan-type LinkResult array{level: 'success'|'warning', message: string}
  */
